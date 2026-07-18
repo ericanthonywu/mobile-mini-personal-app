@@ -5,6 +5,9 @@ class SecureStorage {
   static const _storage = FlutterSecureStorage(
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
+      // Share the Keychain access group with the widget extension.
+      // iOS Keychain access groups MUST be prefixed with the Team ID (2L6GH4B3U6).
+      groupId: '2L6GH4B3U6.com.ericanthonywu.expenseTracker',
     ),
   );
 

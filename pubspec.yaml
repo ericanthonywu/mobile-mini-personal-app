@@ -38,6 +38,9 @@ dependencies:
   # Color picker for categories
   flex_color_picker: ^3.5.1
 
+  # Home screen widget (WidgetKit) bridge
+  home_widget: ^0.7.0
+
   # Icons (extending Material icons)
   cupertino_icons: ^1.0.8
 

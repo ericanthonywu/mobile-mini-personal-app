@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:expense_tracker/core/router/app_router.dart';
+import 'package:expense_tracker/core/utils/widget_service.dart';
 import 'package:expense_tracker/core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
+  await WidgetService.init();
   runApp(
     // Riverpod provider scope — wraps the entire app
     const ProviderScope(
