@@ -21,6 +21,8 @@ class BudgetScreen extends ConsumerWidget {
           SliverAppBar(
             pinned: true,
             backgroundColor: AppColors.background,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
             title: Text('Anggaran', style: Theme.of(context).textTheme.headlineSmall),
             actions: [
               IconButton(

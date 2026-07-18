@@ -46,6 +46,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           SliverAppBar(
             pinned: true,
             backgroundColor: AppColors.background,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
             title: Text('Transaksi', style: Theme.of(context).textTheme.headlineSmall),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(108),

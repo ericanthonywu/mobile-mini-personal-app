@@ -28,13 +28,14 @@ class DateFormatter {
 
   /// "Today", "Yesterday", or formatted date
   static String relative(DateTime dt) {
+    final local = dt.toLocal();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final d = DateTime(dt.year, dt.month, dt.day);
+    final d = DateTime(local.year, local.month, local.day);
     final diff = today.difference(d).inDays;
 
     if (diff == 0) return 'Hari ini';
     if (diff == 1) return 'Kemarin';
-    return date(dt);
+    return date(local);
   }
 }

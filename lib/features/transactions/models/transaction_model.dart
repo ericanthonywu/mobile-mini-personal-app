@@ -47,16 +47,16 @@ class TransactionModel {
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
       id: json['id'] as String,
-      amount: json['amount'] as int,
+      amount: (json['amount'] as num).toInt(),
       transactionDate: DateTime.parse(json['transaction_date'] as String),
-      merchant: json['merchant'] as String,
+      merchant: json['merchant'] as String? ?? '',
       transactionType: json['transaction_type'] as String? ?? '',
       notes: json['notes'] as String? ?? '',
       categoryId: json['category_id'] as String?,
       categoryName: json['category_name'] as String?,
       categoryColor: json['category_color'] as String?,
       isIgnored: json['is_ignored'] as bool? ?? false,
-      emailMessageId: json['email_message_id'] as String,
+      emailMessageId: json['email_message_id'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );

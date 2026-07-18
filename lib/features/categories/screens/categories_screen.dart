@@ -20,6 +20,8 @@ class CategoriesScreen extends ConsumerWidget {
           SliverAppBar(
             pinned: true,
             backgroundColor: AppColors.background,
+            scrolledUnderElevation: 0,
+            surfaceTintColor: Colors.transparent,
             title: Text('Kategori', style: Theme.of(context).textTheme.headlineSmall),
           ),
           SliverPadding(

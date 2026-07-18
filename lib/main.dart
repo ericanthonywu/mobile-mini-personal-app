@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:expense_tracker/core/router/app_router.dart';
 import 'package:expense_tracker/core/theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('id_ID', null);
   runApp(
     // Riverpod provider scope — wraps the entire app
     const ProviderScope(
@@ -20,13 +22,18 @@ class ExpenseTrackerApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
-    return MaterialApp.router(
-      title: 'Expense Tracker',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      // Force dark mode only
-      themeMode: ThemeMode.dark,
-      routerConfig: router,
+    return Container(
+      // Dark background behind everything — prevents white flash
+      // during iOS overscroll bounce at the native layer.
+      color: const Color(0xFF0D0D0D),
+      child: MaterialApp.router(
+        title: 'Expense Tracker',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.dark,
+        routerConfig: router,
+      ),
     );
   }
 }

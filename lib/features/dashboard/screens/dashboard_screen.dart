@@ -99,6 +99,8 @@ class DashboardScreen extends ConsumerWidget {
     return SliverAppBar(
       pinned: true,
       backgroundColor: AppColors.background,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

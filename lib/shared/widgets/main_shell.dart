@@ -23,6 +23,7 @@ class MainShell extends StatelessWidget {
     final currentIndex = _currentIndex(context);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: child,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
