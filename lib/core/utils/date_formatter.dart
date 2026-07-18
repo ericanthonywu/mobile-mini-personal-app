@@ -26,6 +26,20 @@ class DateFormatter {
   /// Month + year: "Juli 2026"
   static String monthYear(DateTime dt) => _monthYear.format(dt);
 
+  /// "Today HH:mm", "Yesterday HH:mm", or full date+time
+  static String relativeWithTime(DateTime dt) {
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final d = DateTime(local.year, local.month, local.day);
+    final diff = today.difference(d).inDays;
+    final timeStr = DateFormat('HH:mm').format(local);
+
+    if (diff == 0) return 'Hari ini, $timeStr';
+    if (diff == 1) return 'Kemarin, $timeStr';
+    return full(local);
+  }
+
   /// "Today", "Yesterday", or formatted date
   static String relative(DateTime dt) {
     final local = dt.toLocal();

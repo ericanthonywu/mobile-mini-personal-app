@@ -10,6 +10,7 @@ import 'package:expense_tracker/features/budget/models/budget_model.dart';
 import 'package:expense_tracker/features/transactions/providers/transaction_provider.dart';
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
 import 'package:expense_tracker/shared/widgets/transaction_card.dart';
+import 'package:expense_tracker/features/dashboard/widgets/expense_chart.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -18,78 +19,98 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final budgetAsync = ref.watch(budgetProvider);
     final recentAsync = ref.watch(recentTransactionsProvider);
+    final chartAsync = ref.watch(budgetChartProvider);
     final pollState = ref.watch(pollProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(context, ref),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // Budget cards
-                budgetAsync.when(
-                  loading: () => _buildBudgetSkeleton(),
-                  error: (e, _) => _buildError(e.toString(), () => ref.refresh(budgetProvider)),
-                  data: (budget) => Column(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        onRefresh: () async {
+          ref.invalidate(budgetProvider);
+          ref.invalidate(recentTransactionsProvider);
+          ref.invalidate(budgetChartProvider);
+          // Wait briefly so the spinner is visible
+          await Future.delayed(const Duration(milliseconds: 500));
+        },
+        child: CustomScrollView(
+          slivers: [
+            _buildAppBar(context, ref),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  // Budget cards
+                  budgetAsync.when(
+                    loading: () => _buildBudgetSkeleton(),
+                    error: (e, _) => _buildError(e.toString(), () => ref.invalidate(budgetProvider)),
+                    data: (budget) => Column(
+                      children: [
+                        _BudgetCard(
+                          label: 'Minggu Ini',
+                          period: budget.week,
+                        ),
+                        const SizedBox(height: 12),
+                        _BudgetCard(
+                          label: 'Bulan Ini',
+                          period: budget.month,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Expense comparison
+                  budgetAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (budget) => _ExpenseComparisonCard(budget: budget),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Expense chart
+                  chartAsync.when(
+                    loading: () => _SkeletonBox(height: 280, borderRadius: 16),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (chart) => ExpenseChart(chart: chart),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Recent transactions header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _BudgetCard(
-                        label: 'Minggu Ini',
-                        period: budget.week,
-                      ),
-                      const SizedBox(height: 12),
-                      _BudgetCard(
-                        label: 'Bulan Ini',
-                        period: budget.month,
+                      Text('Transaksi Terbaru',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      TextButton(
+                        onPressed: () => context.go('/transactions'),
+                        child: const Text('Lihat Semua'),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
-                // Expense comparison
-                budgetAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (budget) => _ExpenseComparisonCard(budget: budget),
-                ),
-                const SizedBox(height: 20),
-
-                // Recent transactions header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Transaksi Terbaru',
-                        style: Theme.of(context).textTheme.titleLarge),
-                    TextButton(
-                      onPressed: () => context.go('/transactions'),
-                      child: const Text('Lihat Semua'),
+                  // Recent transactions list
+                  recentAsync.when(
+                    loading: () => Column(
+                      children: List.generate(3, (_) => const _TransactionSkeleton()),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Recent transactions list
-                recentAsync.when(
-                  loading: () => Column(
-                    children: List.generate(3, (_) => const _TransactionSkeleton()),
+                    error: (e, _) => _buildError(e.toString(), () => ref.invalidate(recentTransactionsProvider)),
+                    data: (txs) => txs.isEmpty
+                        ? _EmptyState()
+                        : Column(
+                            children: txs.map((tx) => TransactionCard(
+                              transaction: tx,
+                              onIgnoreToggle: null, // read-only on dashboard
+                            )).toList(),
+                          ),
                   ),
-                  error: (e, _) => _buildError(e.toString(), () => ref.refresh(recentTransactionsProvider)),
-                  data: (txs) => txs.isEmpty
-                      ? _EmptyState()
-                      : Column(
-                          children: txs.map((tx) => TransactionCard(
-                            transaction: tx,
-                            onIgnoreToggle: null, // read-only on dashboard
-                          )).toList(),
-                        ),
-                ),
-              ]),
+                ]),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: _SyncFab(pollState: pollState, ref: ref),
     );
@@ -353,8 +374,9 @@ class _SyncFab extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(state.lastMessage ?? 'Sync selesai')),
                 );
-                ref.refresh(budgetProvider);
-                ref.refresh(recentTransactionsProvider);
+                ref.invalidate(budgetProvider);
+                ref.invalidate(recentTransactionsProvider);
+                ref.invalidate(budgetChartProvider);
               }
             },
       tooltip: 'Sinkronkan Email',

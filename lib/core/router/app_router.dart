@@ -31,24 +31,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/login',
         builder: (_, __) => const LoginScreen(),
       ),
-      ShellRoute(
-        builder: (context, state, child) => MainShell(child: child),
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (_, __) => const DashboardScreen(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (_, __) => const DashboardScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/transactions',
-            builder: (_, __) => const TransactionsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/transactions',
+                builder: (_, __) => const TransactionsScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/categories',
-            builder: (_, __) => const CategoriesScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/categories',
+                builder: (_, __) => const CategoriesScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: '/budget',
-            builder: (_, __) => const BudgetScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/budget',
+                builder: (_, __) => const BudgetScreen(),
+              ),
+            ],
           ),
         ],
       ),

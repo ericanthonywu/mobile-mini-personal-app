@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
@@ -215,6 +216,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               );
             },
             onCategoryTap: () => _showCategoryPicker(context, tx),
+            onAmountTap: () => _showAmountEditor(context, tx),
           );
         },
       ),
@@ -253,6 +255,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 ref.read(transactionProvider.notifier).updateTransaction(
                   tx.id,
                   categoryId: cat.id,
+                  categoryName: cat.name,
+                  categoryColor: cat.color,
                 );
               },
             )),
@@ -263,9 +267,76 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 Navigator.pop(context);
                 ref.read(transactionProvider.notifier).updateTransaction(
                   tx.id,
-                  categoryId: null,
+                  clearCategory: true,
                 );
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAmountEditor(BuildContext context, TransactionModel tx) {
+    final controller = TextEditingController(text: tx.amount.toString());
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 20, 20,
+          20 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Edit Jumlah', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(tx.merchant, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 20),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+              decoration: InputDecoration(
+                prefixText: 'Rp ',
+                prefixStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                hintText: '0',
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  final raw = int.tryParse(controller.text);
+                  if (raw != null && raw > 0) {
+                    Navigator.pop(sheetCtx);
+                    ref.read(transactionProvider.notifier).updateTransaction(
+                      tx.id,
+                      amount: raw,
+                    );
+                  }
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
             ),
           ],
         ),

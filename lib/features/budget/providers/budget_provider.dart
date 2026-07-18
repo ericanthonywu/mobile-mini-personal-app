@@ -8,6 +8,12 @@ final budgetProvider = FutureProvider<BudgetSummaryModel>((ref) async {
   return BudgetSummaryModel.fromJson(response.data as Map<String, dynamic>);
 });
 
+/// Chart data for weekly/monthly expense graphs
+final budgetChartProvider = FutureProvider<BudgetChartModel>((ref) async {
+  final response = await ApiClient.instance.get(ApiEndpoints.budgetChart);
+  return BudgetChartModel.fromJson(response.data as Map<String, dynamic>);
+});
+
 /// Poll state for manual sync button
 class PollState {
   final bool isPolling;

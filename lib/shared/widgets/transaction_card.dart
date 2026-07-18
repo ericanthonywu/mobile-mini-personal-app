@@ -19,12 +19,21 @@ class TransactionCard extends StatelessWidget {
   /// If null, category is not tappable.
   final VoidCallback? onCategoryTap;
 
+  /// Called when the user taps the amount.
+  /// If null, amount is not tappable.
+  final VoidCallback? onAmountTap;
+
+  /// Called when the user taps anywhere on the card.
+  final VoidCallback? onTap;
+
   const TransactionCard({
     super.key,
     required this.transaction,
     this.showIgnoreSlide = false,
     this.onIgnoreToggle,
     this.onCategoryTap,
+    this.onAmountTap,
+    this.onTap,
   });
 
   @override
@@ -68,106 +77,125 @@ class TransactionCard extends StatelessWidget {
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
       opacity: isIgnored ? 0.55 : 1.0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isIgnored ? AppColors.border.withOpacity(0.5) : AppColors.border,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              // Category color indicator
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: (category?.colorValue ?? AppColors.textDisabled).withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: CircleAvatar(
-                    radius: 8,
-                    backgroundColor: category?.colorValue ?? AppColors.textDisabled,
-                  ),
-                ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isIgnored ? AppColors.border.withOpacity(0.5) : AppColors.border,
               ),
-              const SizedBox(width: 12),
-              // Main content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      transaction.merchant,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        decoration: isIgnored ? TextDecoration.lineThrough : null,
-                        color: isIgnored ? AppColors.textSecondary : AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  // Category color indicator
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: (category?.colorValue ?? AppColors.textDisabled).withOpacity(0.15),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 3),
-                    Row(
+                    child: Center(
+                      child: CircleAvatar(
+                        radius: 8,
+                        backgroundColor: category?.colorValue ?? AppColors.textDisabled,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Main content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Category chip
-                        GestureDetector(
-                          onTap: onCategoryTap,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: (category?.colorValue ?? AppColors.textDisabled).withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              category?.name ?? 'Tanpa Kategori',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: category?.colorValue ?? AppColors.textDisabled,
+                        Text(
+                          transaction.merchant,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            decoration: isIgnored ? TextDecoration.lineThrough : null,
+                            color: isIgnored ? AppColors.textSecondary : AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            // Category chip
+                            GestureDetector(
+                              onTap: onCategoryTap,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: (category?.colorValue ?? AppColors.textDisabled).withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  category?.name ?? 'Tanpa Kategori',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: category?.colorValue ?? AppColors.textDisabled,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          DateFormatter.relative(transaction.transactionDate),
-                          style: Theme.of(context).textTheme.labelSmall,
+                            const SizedBox(width: 6),
+                            Text(
+                              DateFormatter.relativeWithTime(transaction.transactionDate),
+                              style: Theme.of(context).textTheme.labelSmall,
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Amount
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    CurrencyFormatter.format(transaction.amount),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: isIgnored ? AppColors.textSecondary : AppColors.textPrimary,
-                      decoration: isIgnored ? TextDecoration.lineThrough : null,
+                  ),
+                  const SizedBox(width: 8),
+                  // Amount
+                  GestureDetector(
+                    onTap: onAmountTap,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          CurrencyFormatter.format(transaction.amount),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: isIgnored ? AppColors.textSecondary : AppColors.textPrimary,
+                            decoration: isIgnored ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                        if (isIgnored)
+                          const Text(
+                            'Diabaikan',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 10,
+                              color: AppColors.textDisabled,
+                            ),
+                          ),
+                        if (onAmountTap != null && !isIgnored)
+                          const Text(
+                            'Edit',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 9,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  if (isIgnored)
-                    const Text(
-                      'Diabaikan',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 10,
-                        color: AppColors.textDisabled,
-                      ),
-                    ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

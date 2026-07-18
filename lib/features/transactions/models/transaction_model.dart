@@ -63,21 +63,23 @@ class TransactionModel {
   }
 
   TransactionModel copyWith({
+    int? amount,
     String? categoryId,
     String? categoryName,
     String? categoryColor,
     bool? isIgnored,
+    bool clearCategory = false,
   }) {
     return TransactionModel(
       id: id,
-      amount: amount,
+      amount: amount ?? this.amount,
       transactionDate: transactionDate,
       merchant: merchant,
       transactionType: transactionType,
       notes: notes,
-      categoryId: categoryId ?? this.categoryId,
-      categoryName: categoryName ?? this.categoryName,
-      categoryColor: categoryColor ?? this.categoryColor,
+      categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
+      categoryName: clearCategory ? null : (categoryName ?? this.categoryName),
+      categoryColor: clearCategory ? null : (categoryColor ?? this.categoryColor),
       isIgnored: isIgnored ?? this.isIgnored,
       emailMessageId: emailMessageId,
       createdAt: createdAt,

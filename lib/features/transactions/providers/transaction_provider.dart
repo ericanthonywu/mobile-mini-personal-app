@@ -150,24 +150,42 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
     fetch();
   }
 
-  /// Updates a transaction in-place (for ignore toggle / category change)
-  Future<void> updateTransaction(String id, {String? categoryId, bool? isIgnored}) async {
+  /// Updates a transaction in-place (for ignore toggle / category change / amount edit)
+  Future<void> updateTransaction(
+    String id, {
+    String? categoryId,
+    String? categoryName,
+    String? categoryColor,
+    bool clearCategory = false,
+    bool? isIgnored,
+    int? amount,
+  }) async {
     try {
       final body = <String, dynamic>{};
-      if (categoryId != null) body['categoryId'] = categoryId;
+      // clearCategory explicitly sends null to API to remove the category
+      if (clearCategory) {
+        body['categoryId'] = null;
+      } else if (categoryId != null) {
+        body['categoryId'] = categoryId;
+      }
       if (isIgnored != null) body['isIgnored'] = isIgnored;
+      if (amount != null) body['amount'] = amount;
 
       await ApiClient.instance.patch(
         ApiEndpoints.transactionById(id),
         data: body,
       );
 
-      // Update locally for immediate UI feedback
+      // Update locally for immediate, correct UI feedback
       final updated = state.transactions.map((tx) {
         if (tx.id != id) return tx;
         return tx.copyWith(
           isIgnored: isIgnored ?? tx.isIgnored,
-          categoryId: categoryId ?? tx.categoryId,
+          categoryId: categoryId,
+          categoryName: categoryName,
+          categoryColor: categoryColor,
+          clearCategory: clearCategory,
+          amount: amount ?? tx.amount,
         );
       }).toList();
 
