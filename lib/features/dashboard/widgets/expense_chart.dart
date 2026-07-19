@@ -101,9 +101,12 @@ class _ExpenseChartState extends State<ExpenseChart>
     final lineColor = isOverBudget ? AppColors.error : AppColors.primary;
     final fillColor = isOverBudget ? AppColors.error : AppColors.primary;
 
+    final effectiveMax = _showTotal
+        ? totalCumulative.toDouble()
+        : realCumulative.toDouble();
     final maxY = ([
       budget.toDouble() * 1.15,
-      totalCumulative.toDouble() * 1.1,
+      effectiveMax * 1.1,
       1.0,
     ].reduce((a, b) => a > b ? a : b));
 

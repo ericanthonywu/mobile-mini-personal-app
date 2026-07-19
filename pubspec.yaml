@@ -41,6 +41,15 @@ dependencies:
   # Home screen widget (WidgetKit) bridge
   home_widget: ^0.7.0
 
+  # Local push notifications — OS-level scheduling (fires even when app is killed)
+  flutter_local_notifications: ^18.0.0
+
+  # Timezone support for scheduling at 22:00 WIB (Asia/Jakarta)
+  timezone: ^0.9.4
+
+  # Background task runner — keeps notification data fresh without opening the app
+  workmanager: ^0.5.2
+
   # Icons (extending Material icons)
   cupertino_icons: ^1.0.8
 

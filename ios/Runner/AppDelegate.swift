@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import workmanager
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -12,6 +13,14 @@ import UIKit
     if let window = self.window {
       window.backgroundColor = UIColor.black
     }
+
+    // Register all Flutter plugins for background isolates used by workmanager.
+    // Without this, plugins like Dio and flutter_secure_storage won't work in
+    // the background task callback.
+    WorkmanagerPlugin.setPluginRegistrantCallback { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
