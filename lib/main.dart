@@ -37,14 +37,8 @@ void main() async {
     // Fetch latest budget data and schedule/refresh the 22:00 WIB notification
     await NotificationService.scheduleDailyReminder();
 
-    // Register periodic background refresh (every hour when network is up)
-    await Workmanager().registerPeriodicTask(
-      'budget-notification-refresh',
-      kBudgetRefreshTask,
-      frequency: const Duration(hours: 1),
-      constraints: Constraints(networkType: NetworkType.connected),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
-    );
+    // Schedule the next daily one-off background refresh (approx 21:00 WIB)
+    await scheduleNextOneOffBudgetRefresh();
   });
 }
 
