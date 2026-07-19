@@ -11,6 +11,7 @@ import 'package:expense_tracker/features/transactions/providers/transaction_prov
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
 import 'package:expense_tracker/shared/widgets/transaction_card.dart';
 import 'package:expense_tracker/features/dashboard/widgets/expense_chart.dart';
+import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -44,7 +45,10 @@ class DashboardScreen extends ConsumerWidget {
                   // Budget cards
                   budgetAsync.when(
                     loading: () => _buildBudgetSkeleton(),
-                    error: (e, _) => _buildError(e.toString(), () => ref.invalidate(budgetProvider)),
+                    error: (e, _) => AppErrorWidget(
+                      error: e,
+                      onRetry: () => ref.invalidate(budgetProvider),
+                    ),
                     data: (budget) => Column(
                       children: [
                         _BudgetCard(
@@ -96,7 +100,10 @@ class DashboardScreen extends ConsumerWidget {
                     loading: () => Column(
                       children: List.generate(3, (_) => const _TransactionSkeleton()),
                     ),
-                    error: (e, _) => _buildError(e.toString(), () => ref.invalidate(recentTransactionsProvider)),
+                    error: (e, _) => AppErrorWidget(
+                      error: e,
+                      onRetry: () => ref.invalidate(recentTransactionsProvider),
+                    ),
                     data: (txs) => txs.isEmpty
                         ? _EmptyState()
                         : Column(
@@ -148,17 +155,6 @@ class DashboardScreen extends ConsumerWidget {
         const SizedBox(height: 12),
         _SkeletonBox(height: 120, borderRadius: 16),
       ],
-    );
-  }
-
-  Widget _buildError(String msg, VoidCallback retry) {
-    return Center(
-      child: Column(
-        children: [
-          Text(msg, style: const TextStyle(color: AppColors.error)),
-          TextButton(onPressed: retry, child: const Text('Coba Lagi')),
-        ],
-      ),
     );
   }
 }

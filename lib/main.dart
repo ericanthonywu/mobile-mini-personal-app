@@ -29,7 +29,7 @@ class ExpenseTrackerApp extends ConsumerWidget {
       // during iOS overscroll bounce at the native layer.
       color: const Color(0xFF0D0D0D),
       child: MaterialApp.router(
-        title: 'Expense Tracker',
+        title: "Eric's Expense Tracker",
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         darkTheme: AppTheme.darkTheme,

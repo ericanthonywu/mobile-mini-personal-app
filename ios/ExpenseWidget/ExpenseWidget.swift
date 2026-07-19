@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - Models
 
@@ -100,7 +101,32 @@ struct BudgetFetcher {
         return "http://localhost:3000/api"
     }
 
-    static func fetch(token: String) async throws -> BudgetSummary {
+    /// Fetches budget data with up to `maxRetries` retries on network errors.
+    static func fetch(token: String, maxRetries: Int = 2) async throws -> BudgetSummary {
+        var lastError: Error = URLError(.unknown)
+        for attempt in 0...maxRetries {
+            do {
+                return try await _fetchOnce(token: token)
+            } catch let error as URLError {
+                // Retry only on network-level errors (not bad server responses)
+                let retryable = [
+                    URLError.Code.timedOut,
+                    URLError.Code.networkConnectionLost,
+                    URLError.Code.notConnectedToInternet,
+                    URLError.Code.cannotConnectToHost,
+                ]
+                guard retryable.contains(error.code) else { throw error }
+                lastError = error
+                if attempt < maxRetries {
+                    // Exponential backoff: 1s → 2s
+                    try? await Task.sleep(nanoseconds: UInt64(1_000_000_000) << attempt)
+                }
+            }
+        }
+        throw lastError
+    }
+
+    private static func _fetchOnce(token: String) async throws -> BudgetSummary {
         guard let url = URL(string: "\(baseURL)/budget") else {
             throw URLError(.badURL)
         }
@@ -113,6 +139,18 @@ struct BudgetFetcher {
             throw URLError(.badServerResponse)
         }
         return try JSONDecoder().decode(BudgetSummary.self, from: data)
+    }
+}
+
+// MARK: - Refresh Intent (iOS 17+ interactive widget button)
+
+struct RefreshBudgetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Refresh Budget"
+    static var description = IntentDescription("Reloads budget data from the server.")
+
+    func perform() async throws -> some IntentResult {
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
     }
 }
 
@@ -251,6 +289,23 @@ struct WidgetErrorView: View {
     }
 }
 
+// MARK: - Refresh Button (shared helper)
+
+/// A small circular refresh button that triggers `RefreshBudgetIntent`.
+/// Only shown on medium and large widgets where space permits.
+struct RefreshButton: View {
+    var body: some View {
+        Button(intent: RefreshBudgetIntent()) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 26)
+                .background(.ultraThinMaterial, in: Circle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Small Widget
 
 struct SmallWidgetView: View {
@@ -261,7 +316,7 @@ struct SmallWidgetView: View {
             WidgetErrorView(message: error)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                // Header
+                // Header with refresh button
                 HStack(spacing: 4) {
                     Image(systemName: "creditcard.fill")
                         .font(.caption2)
@@ -270,6 +325,8 @@ struct SmallWidgetView: View {
                         .font(.caption2)
                         .fontWeight(.semibold)
                         .foregroundStyle(.tint)
+                    Spacer()
+                    RefreshButton()
                 }
                 Spacer()
                 if let week = entry.week {
@@ -300,6 +357,9 @@ struct MediumWidgetView: View {
                             .font(.caption2)
                             .fontWeight(.semibold)
                             .foregroundStyle(.tint)
+                        Spacer()
+                        // Refresh button — tapping reloads the timeline
+                        RefreshButton()
                     }
                     Spacer()
                     if let week = entry.week {
@@ -342,7 +402,7 @@ struct LargeWidgetView: View {
             WidgetErrorView(message: error)
         } else {
             VStack(alignment: .leading, spacing: 14) {
-                // Header
+                // Header with refresh button
                 HStack {
                     Label("Expense Tracker", systemImage: "creditcard.fill")
                         .font(.subheadline)
@@ -352,6 +412,8 @@ struct LargeWidgetView: View {
                     Text(dateTimeString)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    // Refresh button
+                    RefreshButton()
                 }
 
                 Divider()
@@ -403,14 +465,22 @@ struct LockScreenRectangularView: View {
     var body: some View {
         if let week = entry.week, let month = entry.month {
             VStack(alignment: .leading, spacing: 3) {
+                // Header row with refresh button
                 HStack(spacing: 4) {
                     Image(systemName: "creditcard.fill")
                         .font(.system(size: 9))
                     Text("EXPENSE")
                         .font(.system(size: 9, weight: .bold))
+                    Spacer()
+                    // Refresh button fits in the header row
+                    Button(intent: RefreshBudgetIntent()) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 9, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .foregroundStyle(.secondary)
-                
+
                 HStack {
                     Text("Minggu:")
                         .font(.system(size: 11, weight: .medium))
@@ -418,7 +488,7 @@ struct LockScreenRectangularView: View {
                     Text(week.realSpent.rupiahCompact)
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                 }
-                
+
                 HStack {
                     Text("Bulan:")
                         .font(.system(size: 11, weight: .medium))
@@ -428,8 +498,16 @@ struct LockScreenRectangularView: View {
                 }
             }
         } else {
-            Text("Expense Tracker")
-                .font(.caption2)
+            // Error / loading state — whole widget taps to refresh
+            Button(intent: RefreshBudgetIntent()) {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 10))
+                    Text(entry.error ?? "Expense Tracker")
+                        .font(.caption2)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -438,17 +516,28 @@ struct LockScreenCircularView: View {
     let entry: WidgetEntry
 
     var body: some View {
-        if let week = entry.week {
-            Gauge(value: min(Double(week.percentUsed) / 100.0, 1.0)) {
-                Image(systemName: "creditcard.fill")
-            } currentValueLabel: {
-                Text("\(week.percentUsed)%")
-                    .font(.system(size: 10, weight: .bold))
+        // The entire circular widget is a refresh button —
+        // no room for a separate icon at this size.
+        Button(intent: RefreshBudgetIntent()) {
+            if let week = entry.week {
+                Gauge(value: min(Double(week.percentUsed) / 100.0, 1.0)) {
+                    Image(systemName: "creditcard.fill")
+                } currentValueLabel: {
+                    Text("\(week.percentUsed)%")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .gaugeStyle(.accessoryCircular)
+            } else {
+                // Show refresh icon when data unavailable
+                ZStack {
+                    Image(systemName: "creditcard.fill")
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 8, weight: .bold))
+                        .offset(x: 8, y: 8)
+                }
             }
-            .gaugeStyle(.accessoryCircular)
-        } else {
-            Image(systemName: "creditcard.fill")
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -456,11 +545,18 @@ struct LockScreenInlineView: View {
     let entry: WidgetEntry
 
     var body: some View {
-        if let week = entry.week, let month = entry.month {
-            Text("Mgg: \(week.realSpent.rupiahCompact) • Bln: \(month.realSpent.rupiahCompact)")
-        } else {
-            Text("Expense Tracker")
+        // Inline widgets have a single line — tap to refresh.
+        Button(intent: RefreshBudgetIntent()) {
+            if let week = entry.week, let month = entry.month {
+                Label(
+                    "Mgg: \(week.realSpent.rupiahCompact) · Bln: \(month.realSpent.rupiahCompact)",
+                    systemImage: "arrow.clockwise"
+                )
+            } else {
+                Label("Expense Tracker", systemImage: "arrow.clockwise")
+            }
         }
+        .buttonStyle(.plain)
     }
 }
 
