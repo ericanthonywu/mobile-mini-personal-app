@@ -57,13 +57,16 @@ struct WidgetEntry: TimelineEntry {
     let week: BudgetPeriod?
     let month: BudgetPeriod?
     let error: String?
+    /// Number of unresolved parse-failure alerts — drives the orange badge on home screen widgets.
+    let alertCount: Int
 
     static var placeholder: WidgetEntry {
         WidgetEntry(
             date: Date(),
             week: BudgetPeriod(budget: 2_000_000, realSpent: 850_000, remaining: 1_150_000, percentUsed: 42, isOverBudget: false),
             month: BudgetPeriod(budget: 8_000_000, realSpent: 4_200_000, remaining: 3_800_000, percentUsed: 52, isOverBudget: false),
-            error: nil
+            error: nil,
+            alertCount: 0
         )
     }
 }
@@ -142,6 +145,32 @@ struct BudgetFetcher {
     }
 }
 
+// MARK: - Alert Count Fetcher
+
+/// Fetches only the unresolved alert count from GET /api/alerts/count.
+/// Used by the widget to show the parse-failure badge without fetching the full alert list.
+/// Always returns 0 on any error — widget still shows budget data.
+struct AlertFetcher {
+    static func fetchCount(token: String) async -> Int {
+        guard let url = URL(string: "\(BudgetFetcher.baseURL)/alerts/count") else { return 0 }
+        var request = URLRequest(url: url, timeoutInterval: 8)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return 0 }
+            // Response shape: { "count": N }
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let count = json["count"] as? Int {
+                return count
+            }
+            return 0
+        } catch {
+            return 0
+        }
+    }
+}
+
 // MARK: - Refresh Intent (iOS 17+ interactive widget button)
 
 struct RefreshBudgetIntent: AppIntent {
@@ -175,13 +204,16 @@ struct BudgetTimelineProvider: TimelineProvider {
 
     private func fetchEntry() async -> WidgetEntry {
         guard let token = KeychainHelper.readToken() else {
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Belum login")
+            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Belum login", alertCount: 0)
         }
         do {
-            let summary = try await BudgetFetcher.fetch(token: token)
-            return WidgetEntry(date: Date(), week: summary.week, month: summary.month, error: nil)
+            // Fetch budget and alert count concurrently
+            async let budgetFetch = BudgetFetcher.fetch(token: token)
+            async let alertFetch  = AlertFetcher.fetchCount(token: token)
+            let (summary, alertCount) = try await (budgetFetch, alertFetch)
+            return WidgetEntry(date: Date(), week: summary.week, month: summary.month, error: nil, alertCount: alertCount)
         } catch {
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Gagal memuat data")
+            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Gagal memuat data", alertCount: 0)
         }
     }
 }
@@ -311,21 +343,34 @@ struct RefreshButton: View {
 struct SmallWidgetView: View {
     let entry: WidgetEntry
 
+    /// Short date string in WIB locale, e.g. "Sab, 19 Jul"
+    var todayShort: String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "EEE, d MMM"
+        fmt.locale = Locale(identifier: "id_ID")
+        return fmt.string(from: entry.date)
+    }
+
     var body: some View {
         if let error = entry.error {
             WidgetErrorView(message: error)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                // Header with refresh button
+                // Header: date on left, optional alert badge + refresh on right
                 HStack(spacing: 4) {
-                    Image(systemName: "creditcard.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.tint)
-                    Text("Expense")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.tint)
+                    Text(todayShort)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.tertiary)
                     Spacer()
+                    // Alert badge — home screen only, shown only when there are failures
+                    if entry.alertCount > 0 {
+                        Label("\(entry.alertCount)", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15), in: Capsule())
+                    }
                     RefreshButton()
                 }
                 Spacer()
@@ -343,6 +388,14 @@ struct SmallWidgetView: View {
 struct MediumWidgetView: View {
     let entry: WidgetEntry
 
+    /// Short date string in WIB locale, e.g. "Sab, 19 Jul"
+    var todayShort: String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "EEE, d MMM"
+        fmt.locale = Locale(identifier: "id_ID")
+        return fmt.string(from: entry.date)
+    }
+
     var body: some View {
         if let error = entry.error {
             WidgetErrorView(message: error)
@@ -358,6 +411,19 @@ struct MediumWidgetView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(.tint)
                         Spacer()
+                        // Today's date
+                        Text(todayShort)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                        // Alert badge — home screen only
+                        if entry.alertCount > 0 {
+                            Label("\(entry.alertCount)", systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.orange.opacity(0.15), in: Capsule())
+                        }
                         // Refresh button — tapping reloads the timeline
                         RefreshButton()
                     }
@@ -412,6 +478,15 @@ struct LargeWidgetView: View {
                     Text(dateTimeString)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    // Alert badge — home screen only, shown only when there are failures
+                    if entry.alertCount > 0 {
+                        Label("\(entry.alertCount)", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15), in: Capsule())
+                    }
                     // Refresh button
                     RefreshButton()
                 }

@@ -12,6 +12,8 @@ import 'package:expense_tracker/features/transactions/models/transaction_model.d
 import 'package:expense_tracker/shared/widgets/transaction_card.dart';
 import 'package:expense_tracker/features/dashboard/widgets/expense_chart.dart';
 import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
+import 'package:expense_tracker/features/dashboard/providers/alert_provider.dart';
+import 'package:expense_tracker/features/dashboard/widgets/alert_banner.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -32,6 +34,7 @@ class DashboardScreen extends ConsumerWidget {
           ref.invalidate(budgetProvider);
           ref.invalidate(recentTransactionsProvider);
           ref.invalidate(budgetChartProvider);
+          ref.invalidate(alertsProvider);
           // Wait briefly so the spinner is visible
           await Future.delayed(const Duration(milliseconds: 500));
         },
@@ -42,6 +45,22 @@ class DashboardScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
+                  // Parse-failure alert banner — silently hidden on load/error
+                  // (alerts are informational, never block the dashboard)
+                  ref.watch(alertsProvider).when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (alerts) => alerts.isEmpty
+                        ? const SizedBox.shrink()
+                        : AlertBanner(alerts: alerts),
+                  ),
+                  ref.watch(alertsProvider).maybeWhen(
+                    data: (alerts) => alerts.isNotEmpty
+                        ? const SizedBox(height: 12)
+                        : const SizedBox.shrink(),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+
                   // Budget cards
                   budgetAsync.when(
                     loading: () => _buildBudgetSkeleton(),

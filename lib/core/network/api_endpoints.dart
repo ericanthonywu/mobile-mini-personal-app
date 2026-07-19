@@ -25,4 +25,10 @@ class ApiEndpoints {
   // Budget
   static const String budget = '/budget';
   static const String budgetChart = '/budget/chart';
+
+  // Alerts
+  static const String alerts = '/alerts';
+  static const String alertsCount = '/alerts/count';
+  static String alertResolve(String id) => '/alerts/$id/resolve';
+  static const String alertsResolveAll = '/alerts/resolve-all';
 }

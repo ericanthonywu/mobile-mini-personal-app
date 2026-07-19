@@ -11,7 +11,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      fontFamily: 'Inter',
+      fontFamily: 'PlusJakartaSans',
 
       colorScheme: const ColorScheme.dark(
         brightness: Brightness.dark,
@@ -42,7 +42,7 @@ class AppTheme {
           statusBarBrightness: Brightness.dark,
         ),
         titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'PlusJakartaSans',
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
@@ -58,12 +58,12 @@ class AppTheme {
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         selectedLabelStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'PlusJakartaSans',
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
         unselectedLabelStyle: TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'PlusJakartaSans',
           fontSize: 11,
           fontWeight: FontWeight.w400,
         ),
@@ -112,7 +112,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(14),
           ),
           textStyle: const TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: 'PlusJakartaSans',
             fontSize: 16,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.2,
@@ -125,7 +125,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
           textStyle: const TextStyle(
-            fontFamily: 'Inter',
+            fontFamily: 'PlusJakartaSans',
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -136,7 +136,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariant,
         labelStyle: const TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'PlusJakartaSans',
           fontSize: 12,
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
@@ -179,7 +179,7 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.surfaceHighlight,
         contentTextStyle: const TextStyle(
-          fontFamily: 'Inter',
+          fontFamily: 'PlusJakartaSans',
           fontSize: 14,
           color: AppColors.textPrimary,
         ),
