@@ -11,6 +11,7 @@ import 'package:expense_tracker/features/transactions/providers/transaction_prov
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
 import 'package:expense_tracker/shared/widgets/transaction_card.dart';
 import 'package:expense_tracker/features/dashboard/widgets/expense_chart.dart';
+import 'package:expense_tracker/features/dashboard/widgets/spending_summary_chart.dart';
 import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
 import 'package:expense_tracker/features/dashboard/providers/alert_provider.dart';
 import 'package:expense_tracker/features/dashboard/widgets/alert_banner.dart';
@@ -84,20 +85,16 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // Expense comparison
-                  budgetAsync.when(
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                    data: (budget) => _ExpenseComparisonCard(budget: budget),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Expense chart
+                  // Cumulative expense line chart
                   chartAsync.when(
                     loading: () => _SkeletonBox(height: 280, borderRadius: 16),
                     error: (_, __) => const SizedBox.shrink(),
                     data: (chart) => ExpenseChart(chart: chart),
                   ),
+                  const SizedBox(height: 20),
+
+                  // Spending summary bar charts (weekly / monthly)
+                  const SpendingSummaryChart(),
                   const SizedBox(height: 20),
 
                   // Recent transactions header
@@ -132,6 +129,14 @@ class DashboardScreen extends ConsumerWidget {
                             )).toList(),
                           ),
                   ),
+                  const SizedBox(height: 20),
+
+                  // Expense comparison — moved to bottom
+                  budgetAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (budget) => _ExpenseComparisonCard(budget: budget),
+                  ),
                 ]),
               ),
             ),
@@ -145,6 +150,7 @@ class DashboardScreen extends ConsumerWidget {
   SliverAppBar _buildAppBar(BuildContext context, WidgetRef ref) {
     return SliverAppBar(
       pinned: true,
+      centerTitle: false,
       backgroundColor: AppColors.background,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
