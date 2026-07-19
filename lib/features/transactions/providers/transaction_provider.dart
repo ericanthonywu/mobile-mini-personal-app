@@ -10,6 +10,8 @@ class TransactionFilters {
   final DateTime? dateFrom;
   final DateTime? dateTo;
   final String? search;
+  final String sortBy;
+  final String sortOrder;
   final int page;
   final int limit;
 
@@ -19,6 +21,8 @@ class TransactionFilters {
     this.dateFrom,
     this.dateTo,
     this.search,
+    this.sortBy = 'date',
+    this.sortOrder = 'desc',
     this.page = 1,
     this.limit = 20,
   });
@@ -29,18 +33,23 @@ class TransactionFilters {
     DateTime? dateFrom,
     DateTime? dateTo,
     String? search,
+    String? sortBy,
+    String? sortOrder,
     int? page,
     int? limit,
     bool clearCategory = false,
     bool clearIgnored = false,
     bool clearSearch = false,
+    bool clearDate = false,
   }) {
     return TransactionFilters(
       categoryId: clearCategory ? null : (categoryId ?? this.categoryId),
       isIgnored: clearIgnored ? null : (isIgnored ?? this.isIgnored),
-      dateFrom: dateFrom ?? this.dateFrom,
-      dateTo: dateTo ?? this.dateTo,
+      dateFrom: clearDate ? null : (dateFrom ?? this.dateFrom),
+      dateTo: clearDate ? null : (dateTo ?? this.dateTo),
       search: clearSearch ? null : (search ?? this.search),
+      sortBy: sortBy ?? this.sortBy,
+      sortOrder: sortOrder ?? this.sortOrder,
       page: page ?? this.page,
       limit: limit ?? this.limit,
     );
@@ -53,6 +62,8 @@ class TransactionFilters {
       if (dateFrom != null) 'dateFrom': dateFrom!.toIso8601String(),
       if (dateTo != null) 'dateTo': dateTo!.toIso8601String(),
       if (search != null && search!.isNotEmpty) 'search': search,
+      'sortBy': sortBy,
+      'sortOrder': sortOrder,
       'page': page.toString(),
       'limit': limit.toString(),
     };
@@ -63,39 +74,48 @@ class TransactionFilters {
 class TransactionListState {
   final List<TransactionModel> transactions;
   final int total;
+  final int totalAmount;
   final int totalPages;
   final bool isLoading;
   final bool isLoadingMore;
   final String? error;
   final TransactionFilters filters;
+  final String? dateLabel;
 
   const TransactionListState({
     this.transactions = const [],
     this.total = 0,
+    this.totalAmount = 0,
     this.totalPages = 1,
     this.isLoading = false,
     this.isLoadingMore = false,
     this.error,
     this.filters = const TransactionFilters(),
+    this.dateLabel,
   });
 
   TransactionListState copyWith({
     List<TransactionModel>? transactions,
     int? total,
+    int? totalAmount,
     int? totalPages,
     bool? isLoading,
     bool? isLoadingMore,
     String? error,
     TransactionFilters? filters,
+    String? dateLabel,
+    bool clearDateLabel = false,
   }) {
     return TransactionListState(
       transactions: transactions ?? this.transactions,
       total: total ?? this.total,
+      totalAmount: totalAmount ?? this.totalAmount,
       totalPages: totalPages ?? this.totalPages,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: error,
       filters: filters ?? this.filters,
+      dateLabel: clearDateLabel ? null : (dateLabel ?? this.dateLabel),
     );
   }
 }
@@ -126,6 +146,7 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
             ? result.data
             : [...state.transactions, ...result.data],
         total: result.total,
+        totalAmount: result.totalAmount,
         totalPages: result.totalPages,
         isLoading: false,
         isLoadingMore: false,
@@ -145,8 +166,12 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
     await fetch(reset: false);
   }
 
-  void applyFilters(TransactionFilters filters) {
-    state = state.copyWith(filters: filters);
+  void applyFilters(TransactionFilters filters, {String? dateLabel, bool clearDateLabel = false}) {
+    state = state.copyWith(
+      filters: filters,
+      dateLabel: dateLabel,
+      clearDateLabel: clearDateLabel,
+    );
     fetch();
   }
 
@@ -177,8 +202,29 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
       );
 
       // Update locally for immediate, correct UI feedback
+      int totalAmountDiff = 0;
       final updated = state.transactions.map((tx) {
         if (tx.id != id) return tx;
+
+        final oldAmount = tx.amount;
+        final oldIgnored = tx.isIgnored;
+        final newAmount = amount ?? oldAmount;
+        final newIgnored = isIgnored ?? oldIgnored;
+
+        // If ignored status changed
+        if (oldIgnored != newIgnored) {
+          if (newIgnored) {
+            // Became ignored, subtract its amount (either old or new)
+            totalAmountDiff -= oldAmount;
+          } else {
+            // Became active, add its amount
+            totalAmountDiff += newAmount;
+          }
+        } else if (!newIgnored) {
+          // If both are active, add the difference in amount
+          totalAmountDiff += (newAmount - oldAmount);
+        }
+
         return tx.copyWith(
           isIgnored: isIgnored ?? tx.isIgnored,
           categoryId: categoryId,
@@ -189,7 +235,10 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
         );
       }).toList();
 
-      state = state.copyWith(transactions: updated);
+      state = state.copyWith(
+        transactions: updated,
+        totalAmount: state.totalAmount + totalAmountDiff,
+      );
     } catch (e) {
       state = state.copyWith(error: extractApiError(e));
     }

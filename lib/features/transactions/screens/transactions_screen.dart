@@ -22,10 +22,521 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   bool? _isIgnoredFilter;
   String? _categoryFilter;
 
+  DateTime? _selectedDateFrom;
+  DateTime? _selectedDateTo;
+  String? _selectedDateLabel;
+
+  // Track selections for persistent sheet state
+  String _tempFilterType = 'month'; // 'month', 'week', 'custom'
+  int _tempYear = DateTime.now().year;
+  int _tempMonth = DateTime.now().month;
+  DateTime? _tempCustomFrom;
+  DateTime? _tempCustomTo;
+
+  static const List<String> _monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  static const List<String> _monthShortNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Retrieve persistent filter values from global state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final state = ref.read(transactionProvider);
+        setState(() {
+          _selectedDateFrom = state.filters.dateFrom;
+          _selectedDateTo = state.filters.dateTo;
+          _selectedDateLabel = state.dateLabel;
+          _isIgnoredFilter = state.filters.isIgnored;
+          _categoryFilter = state.filters.categoryId;
+          if (state.filters.search != null) {
+            _searchController.text = state.filters.search!;
+          }
+          // Set temp date selectors in sheet to match selected filter
+          if (_selectedDateFrom != null) {
+            _tempYear = _selectedDateFrom!.year;
+            _tempMonth = _selectedDateFrom!.month;
+            _tempCustomFrom = _selectedDateFrom;
+            _tempCustomTo = _selectedDateTo;
+          }
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  List<Map<String, dynamic>> _getWeeksOfMonth(int year, int month) {
+    final weeks = <Map<String, dynamic>>[];
+    final firstDayOfMonth = DateTime(year, month, 1);
+    final lastDayOfMonth = DateTime(year, month + 1, 0);
+
+    DateTime current = firstDayOfMonth;
+    int weekIndex = 1;
+
+    while (current.isBefore(lastDayOfMonth) || current.isAtSameMomentAs(lastDayOfMonth)) {
+      final start = current;
+      int daysToSunday = 7 - current.weekday;
+      DateTime end = current.add(Duration(days: daysToSunday));
+      if (end.isAfter(lastDayOfMonth)) {
+        end = lastDayOfMonth;
+      }
+
+      weeks.add({
+        'index': weekIndex,
+        'start': DateTime(start.year, start.month, start.day, 0, 0, 0),
+        'end': DateTime(end.year, end.month, end.day, 23, 59, 59, 999),
+      });
+
+      weekIndex++;
+      current = end.add(const Duration(days: 1));
+    }
+    return weeks;
+  }
+
+  String _formatWeekRange(DateTime start, DateTime end) {
+    final startStr = "${start.day} ${_monthShortNames[start.month - 1]}";
+    final endStr = "${end.day} ${_monthShortNames[end.month - 1]}";
+    return "$startStr - $endStr";
+  }
+
+  String _formatCustomRangeLabel(DateTime from, DateTime to) {
+    final fromStr = "${from.day} ${_monthShortNames[from.month - 1]}";
+    final toStr = "${to.day} ${_monthShortNames[to.month - 1]}";
+    if (from.year == to.year) {
+      return "$fromStr - $toStr ${from.year}";
+    } else {
+      return "$fromStr ${from.year} - $toStr ${to.year}";
+    }
+  }
+
+  void _applyDateFilter(DateTime? from, DateTime? to, String? label) {
+    setState(() {
+      _selectedDateFrom = from;
+      _selectedDateTo = to;
+      _selectedDateLabel = label;
+    });
+
+    final notifier = ref.read(transactionProvider.notifier);
+    final state = ref.read(transactionProvider);
+    if (from == null || to == null) {
+      notifier.applyFilters(state.filters.copyWith(clearDate: true), clearDateLabel: true);
+    } else {
+      notifier.applyFilters(state.filters.copyWith(dateFrom: from, dateTo: to), dateLabel: label);
+    }
+  }
+
+  void _showDateFilterPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            final weeks = _getWeeksOfMonth(_tempYear, _tempMonth);
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20, 20, 20,
+                20 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Filter Tanggal', style: Theme.of(context).textTheme.titleLarge),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Segmented Tabs
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setModalState(() => _tempFilterType = 'month'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _tempFilterType == 'month' ? AppColors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Bulan',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: _tempFilterType == 'month' ? Colors.white : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setModalState(() => _tempFilterType = 'week'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _tempFilterType == 'week' ? AppColors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Minggu',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: _tempFilterType == 'week' ? Colors.white : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setModalState(() => _tempFilterType = 'custom'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _tempFilterType == 'custom' ? AppColors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Custom',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: _tempFilterType == 'custom' ? Colors.white : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // TAB CONTENT
+                  if (_tempFilterType == 'month') ...[
+                    // Year selector
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
+                          onPressed: () => setModalState(() => _tempYear--),
+                        ),
+                        Text(
+                          '$_tempYear',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
+                          onPressed: () => setModalState(() => _tempYear++),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Month Grid
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 2.2,
+                      ),
+                      itemCount: 12,
+                      itemBuilder: (context, index) {
+                        final monthNum = index + 1;
+                        final isSelected = _selectedDateFrom != null &&
+                            _selectedDateFrom!.year == _tempYear &&
+                            _selectedDateFrom!.month == monthNum &&
+                            _selectedDateTo!.year == _tempYear &&
+                            _selectedDateTo!.month == monthNum &&
+                            _selectedDateFrom!.day == 1 &&
+                            _selectedDateTo!.day == DateTime(_tempYear, monthNum + 1, 0).day;
+
+                        return GestureDetector(
+                          onTap: () {
+                            final start = DateTime(_tempYear, monthNum, 1, 0, 0, 0);
+                            final end = DateTime(_tempYear, monthNum + 1, 0, 23, 59, 59, 999);
+                            _tempMonth = monthNum;
+                            _applyDateFilter(start, end, "${_monthNames[index]} $_tempYear");
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? AppColors.primary : AppColors.border,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _monthShortNames[index],
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? Colors.white : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else if (_tempFilterType == 'week') ...[
+                    // Month & Year Selector for Weeks
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
+                          onPressed: () {
+                            setModalState(() {
+                              if (_tempMonth == 1) {
+                                _tempMonth = 12;
+                                _tempYear--;
+                              } else {
+                                _tempMonth--;
+                              }
+                            });
+                          },
+                        ),
+                        Text(
+                          "${_monthNames[_tempMonth - 1]} $_tempYear",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
+                          onPressed: () {
+                            setModalState(() {
+                              if (_tempMonth == 12) {
+                                _tempMonth = 1;
+                                _tempYear++;
+                              } else {
+                                _tempMonth++;
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Weeks List
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: weeks.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final wk = weeks[index];
+                        final wkStart = wk['start'] as DateTime;
+                        final wkEnd = wk['end'] as DateTime;
+                        final wkIdx = wk['index'] as int;
+
+                        final isSelected = _selectedDateFrom != null &&
+                            _selectedDateFrom!.isAtSameMomentAs(wkStart) &&
+                            _selectedDateTo!.isAtSameMomentAs(wkEnd);
+
+                        return GestureDetector(
+                          onTap: () {
+                            _applyDateFilter(
+                              wkStart,
+                              wkEnd,
+                              "Mgg $wkIdx, ${_monthShortNames[_tempMonth - 1]} $_tempYear",
+                            );
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected ? AppColors.primary : AppColors.border,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Minggu $wkIdx",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  _formatWeekRange(wkStart, wkEnd),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: isSelected ? Colors.white70 : AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ] else if (_tempFilterType == 'custom') ...[
+                    // Custom date range picker trigger
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showDateRangePicker(
+                          context: context,
+                          initialDateRange: _tempCustomFrom != null && _tempCustomTo != null
+                              ? DateTimeRange(start: _tempCustomFrom!, end: _tempCustomTo!)
+                              : null,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2100),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.dark(
+                                  primary: AppColors.primary,
+                                  onPrimary: Colors.white,
+                                  surface: AppColors.surface,
+                                  onSurface: AppColors.textPrimary,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+
+                        if (picked != null) {
+                          setModalState(() {
+                            _tempCustomFrom = picked.start;
+                            _tempCustomTo = picked.end;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.date_range, color: AppColors.primary),
+                            const SizedBox(width: 10),
+                            Text(
+                              _tempCustomFrom != null && _tempCustomTo != null
+                                  ? _formatCustomRangeLabel(_tempCustomFrom!, _tempCustomTo!)
+                                  : 'Pilih Rentang Tanggal',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: _tempCustomFrom != null ? AppColors.textPrimary : AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_tempCustomFrom != null && _tempCustomTo != null) ...[
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: () {
+                            final start = DateTime(
+                              _tempCustomFrom!.year,
+                              _tempCustomFrom!.month,
+                              _tempCustomFrom!.day,
+                              0, 0, 0,
+                            );
+                            final end = DateTime(
+                              _tempCustomTo!.year,
+                              _tempCustomTo!.month,
+                              _tempCustomTo!.day,
+                              23, 59, 59, 999,
+                            );
+                            _applyDateFilter(
+                              start,
+                              end,
+                              _formatCustomRangeLabel(start, end),
+                            );
+                            Navigator.pop(context);
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Terapkan', style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
+                  ],
+
+                  if (_selectedDateFrom != null) ...[
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () {
+                          _applyDateFilter(null, null, null);
+                          Navigator.pop(context);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Hapus Filter Tanggal', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 20),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _applySearch(String value) {
@@ -51,7 +562,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             surfaceTintColor: Colors.transparent,
             title: Text('Transaksi', style: Theme.of(context).textTheme.headlineSmall),
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(108),
+              preferredSize: const Size.fromHeight(148),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Column(
@@ -112,6 +623,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               );
                             },
                           ),
+                          const SizedBox(width: 8),
+                          _DateFilterChip(
+                            label: _selectedDateLabel ?? 'Tanggal',
+                            isSelected: _selectedDateFrom != null,
+                            onTap: () => _showDateFilterPicker(context),
+                            onClear: _selectedDateFrom != null
+                                ? () => _applyDateFilter(null, null, null)
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          _SortFilterChip(
+                            sortBy: state.filters.sortBy,
+                            sortOrder: state.filters.sortOrder,
+                            onSelected: (sortBy, sortOrder) {
+                              ref.read(transactionProvider.notifier).applyFilters(
+                                state.filters.copyWith(sortBy: sortBy, sortOrder: sortOrder),
+                              );
+                            },
+                          ),
                           if (categories.isNotEmpty) ...[
                             const SizedBox(width: 8),
                             _CategoryFilterChip(
@@ -123,19 +653,56 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                   id == null
                                       ? state.filters.copyWith(clearCategory: true)
                                       : state.filters.copyWith(categoryId: id),
-                                );
-                              },
+                                  );
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Summary Widget
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.receipt_long, size: 14, color: AppColors.textSecondary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${state.total} Transaksi',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              CurrencyFormatter.format(state.totalAmount),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryLight,
+                              ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
         body: _buildList(state),
       ),
     );
@@ -448,3 +1015,162 @@ class _CategoryFilterChip extends StatelessWidget {
     );
   }
 }
+
+class _DateFilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  const _DateFilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 12,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+            if (isSelected && onClear != null) ...[
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () {
+                  onClear!();
+                },
+                child: const Icon(
+                  Icons.close,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ] else ...[
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_drop_down,
+                size: 16,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SortFilterChip extends StatelessWidget {
+  final String sortBy;
+  final String sortOrder;
+  final void Function(String sortBy, String sortOrder) onSelected;
+
+  const _SortFilterChip({
+    required this.sortBy,
+    required this.sortOrder,
+    required this.onSelected,
+  });
+
+  String get _label {
+    if (sortBy == 'amount') {
+      return sortOrder == 'desc' ? 'Termahal' : 'Termurah';
+    } else {
+      return sortOrder == 'desc' ? 'Terbaru' : 'Terlama';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCustom = !(sortBy == 'date' && sortOrder == 'desc');
+
+    return PopupMenuButton<MapEntry<String, String>>(
+      onSelected: (entry) => onSelected(entry.key, entry.value),
+      offset: const Offset(0, 40),
+      color: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: MapEntry('date', 'desc'),
+          child: Text('Terbaru', style: TextStyle(color: AppColors.textPrimary)),
+        ),
+        const PopupMenuItem(
+          value: MapEntry('date', 'asc'),
+          child: Text('Terlama', style: TextStyle(color: AppColors.textPrimary)),
+        ),
+        const PopupMenuItem(
+          value: MapEntry('amount', 'desc'),
+          child: Text('Termahal', style: TextStyle(color: AppColors.textPrimary)),
+        ),
+        const PopupMenuItem(
+          value: MapEntry('amount', 'asc'),
+          child: Text('Termurah', style: TextStyle(color: AppColors.textPrimary)),
+        ),
+      ],
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isCustom ? AppColors.primary : AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isCustom ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.sort,
+              size: 12,
+              color: isCustom ? Colors.white : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              _label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isCustom ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: isCustom ? Colors.white : AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+

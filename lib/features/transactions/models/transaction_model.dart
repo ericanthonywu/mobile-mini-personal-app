@@ -92,6 +92,7 @@ class TransactionModel {
 class TransactionListResult {
   final List<TransactionModel> data;
   final int total;
+  final int totalAmount;
   final int page;
   final int limit;
   final int totalPages;
@@ -99,6 +100,7 @@ class TransactionListResult {
   const TransactionListResult({
     required this.data,
     required this.total,
+    required this.totalAmount,
     required this.page,
     required this.limit,
     required this.totalPages,
@@ -110,6 +112,7 @@ class TransactionListResult {
           .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
           .toList(),
       total: json['total'] as int,
+      totalAmount: json['totalAmount'] as int? ?? 0,
       page: json['page'] as int,
       limit: json['limit'] as int,
       totalPages: json['totalPages'] as int,
