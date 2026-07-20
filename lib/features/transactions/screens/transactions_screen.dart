@@ -827,6 +827,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
           return TransactionCard(
             transaction: tx,
             showIgnoreSlide: true,
+            showNotes: true,
             onIgnoreToggle: (isIgnored) {
               ref.read(transactionProvider.notifier).updateTransaction(
                 tx.id,

@@ -11,6 +11,10 @@ class TransactionCard extends StatelessWidget {
   final TransactionModel transaction;
   final bool showIgnoreSlide;
 
+  /// Whether to render the notes line below the category/date row.
+  /// Long notes are truncated to 2 lines with a tap-to-expand sheet.
+  final bool showNotes;
+
   /// Called when the user toggles the ignored status.
   /// If null, the ignore action is not shown.
   final void Function(bool isIgnored)? onIgnoreToggle;
@@ -34,6 +38,7 @@ class TransactionCard extends StatelessWidget {
     super.key,
     required this.transaction,
     this.showIgnoreSlide = false,
+    this.showNotes = false,
     this.onIgnoreToggle,
     this.onCategoryTap,
     this.onAmountTap,
@@ -172,6 +177,33 @@ class TransactionCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        if (showNotes && transaction.notes.trim().isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          GestureDetector(
+                            onTap: () => _showNotesSheet(context),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.notes_rounded,
+                                  size: 9,
+                                  color: AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    transaction.notes.trim(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -215,6 +247,44 @@ class TransactionCard extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showNotesSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(sheetCtx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Notes', style: Theme.of(sheetCtx).textTheme.titleLarge),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(sheetCtx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(transaction.merchant, style: Theme.of(sheetCtx).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            Text(
+              transaction.notes.trim(),
+              style: Theme.of(sheetCtx).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
         ),
       ),
     );
