@@ -34,16 +34,30 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
+  
+  double _weekScrollOffset = 0.0;
 
   static const List<String> _monthShortNames = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
+  bool get _canGoNextMonth {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    if (_selectedYear < now.year) return true;
+    if (_selectedYear == now.year && _selectedMonth < now.month) return true;
+    return false;
+  }
+
+  bool get _canGoNextYear {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+    return _selectedYear < now.year;
+  }
+
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     _selectedYear = now.year;
     _selectedMonth = now.month;
 
@@ -85,6 +99,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
         _selectedMonth = newMonth;
       }
       _selectedWeek = null; // reset week when month changes
+      _weekScrollOffset = 0.0; // reset scroll offset
     });
     _fadeController
       ..reset()
@@ -96,6 +111,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
     setState(() {
       _selectedYear += delta;
       _selectedWeek = null;
+      _weekScrollOffset = 0.0;
     });
     _fadeController
       ..reset()
@@ -184,10 +200,14 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                        icon: Icon(
+                          Icons.chevron_right_rounded, 
+                          size: 18,
+                          color: _canGoNextMonth ? AppColors.textPrimary : AppColors.textDisabled,
+                        ),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        onPressed: () => _changeMonth(1),
+                        onPressed: _canGoNextMonth ? () => _changeMonth(1) : null,
                       ),
                     ],
                   ),
@@ -223,10 +243,14 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                        icon: Icon(
+                          Icons.chevron_right_rounded, 
+                          size: 18,
+                          color: _canGoNextYear ? AppColors.textPrimary : AppColors.textDisabled,
+                        ),
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
-                        onPressed: () => _changeYear(1),
+                        onPressed: _canGoNextYear ? () => _changeYear(1) : null,
                       ),
                     ],
                   ),
@@ -274,6 +298,10 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
       data: (data) => _DailyChartWidget(
         data: data,
         selectedWeek: _selectedWeek,
+        initialScrollOffset: _weekScrollOffset,
+        onScrollOffsetChanged: (offset) {
+          _weekScrollOffset = offset;
+        },
         onWeekSelected: (week) {
           HapticFeedback.selectionClick();
           setState(() => _selectedWeek = week);
@@ -311,16 +339,42 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
 }
 
 // ── Daily Chart View (Filtered by Week) ─────────────────────────────────────
-class _DailyChartWidget extends StatelessWidget {
+class _DailyChartWidget extends StatefulWidget {
   final DailyChartModel data;
   final int? selectedWeek;
+  final double initialScrollOffset;
+  final ValueChanged<double> onScrollOffsetChanged;
   final ValueChanged<int> onWeekSelected;
 
   const _DailyChartWidget({
     required this.data,
     required this.selectedWeek,
+    required this.initialScrollOffset,
+    required this.onScrollOffsetChanged,
     required this.onWeekSelected,
   });
+
+  @override
+  State<_DailyChartWidget> createState() => _DailyChartWidgetState();
+}
+
+class _DailyChartWidgetState extends State<_DailyChartWidget> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController(initialScrollOffset: widget.initialScrollOffset);
+    _scrollController.addListener(() {
+      widget.onScrollOffsetChanged(_scrollController.offset);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   String _formatWeekLabel(DailyChartWeekInfo info) {
     if (info.startDate.isEmpty || info.endDate.isEmpty) return 'Week ${info.week}';
@@ -334,8 +388,8 @@ class _DailyChartWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = data.days;
-    final budget = data.budget;
+    final days = widget.data.days;
+    final budget = widget.data.budget;
 
     // Check if all days zero
     final totalReal = days.fold<int>(0, (sum, d) => sum + d.realSpent);
@@ -362,17 +416,28 @@ class _DailyChartWidget extends StatelessWidget {
 
     final interval = calculateNiceInterval(maxY);
 
+    final wibNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Week selector pills ──────────────────────────────────────────
-        if (data.availableWeeks.isNotEmpty) ...[
+        if (widget.data.availableWeeks.isNotEmpty) ...[
           SingleChildScrollView(
+            controller: _scrollController,
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             child: Row(
-              children: data.availableWeeks.map((w) {
-                final isSelected = (selectedWeek ?? data.week) == w.week;
+              children: widget.data.availableWeeks.map((w) {
+                bool isFuture = false;
+                if (w.startDate.isNotEmpty) {
+                  final start = DateTime.tryParse(w.startDate);
+                  if (start != null) {
+                    isFuture = start.isAfter(wibNow);
+                  }
+                }
+                
+                final isSelected = (widget.selectedWeek ?? widget.data.week) == w.week;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
@@ -381,19 +446,25 @@ class _DailyChartWidget extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppColors.textSecondary,
+                        color: isFuture 
+                            ? AppColors.textDisabled 
+                            : (isSelected ? Colors.white : AppColors.textSecondary),
                       ),
                     ),
-                    selected: isSelected,
+                    selected: isSelected && !isFuture,
                     selectedColor: AppColors.primary,
-                    backgroundColor: AppColors.surfaceVariant,
+                    backgroundColor: isFuture 
+                        ? AppColors.surfaceVariant.withValues(alpha: 0.5) 
+                        : AppColors.surfaceVariant,
                     side: BorderSide(
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.border.withValues(alpha: 0.5),
+                      color: isFuture
+                          ? AppColors.border.withValues(alpha: 0.2)
+                          : (isSelected
+                              ? AppColors.primary
+                              : AppColors.border.withValues(alpha: 0.5)),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    onSelected: (_) => onWeekSelected(w.week),
+                    onSelected: isFuture ? null : (_) => widget.onWeekSelected(w.week),
                   ),
                 );
               }).toList(),
@@ -407,7 +478,7 @@ class _DailyChartWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Week ${data.week} Spending',
+              'Week ${widget.data.week} Spending',
               style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.textSecondary,
@@ -550,7 +621,24 @@ class _SummaryBarChart extends StatelessWidget {
     final isWeekly = summary.mode == 'week';
     final budget = summary.budget;
 
-    final hasData = entries.any((e) => e.realSpent > 0);
+    final wibNow = DateTime.now().toUtc().add(const Duration(hours: 7));
+    
+    // Filter out future entries
+    final validEntries = entries.where((e) {
+      if (!isWeekly || e.startDate == null || e.startDate!.isEmpty) {
+        // For monthly mode, we could filter future months, but usually year is blocked.
+        if (!isWeekly) {
+          if (summary.year > wibNow.year) return false;
+          if (summary.year == wibNow.year && e.index > wibNow.month) return false;
+        }
+        return true;
+      }
+      final start = DateTime.tryParse(e.startDate!);
+      if (start == null) return true;
+      return !start.isAfter(wibNow);
+    }).toList();
+
+    final hasData = validEntries.any((e) => e.realSpent > 0);
 
     if (!hasData) {
       return SizedBox(
@@ -573,7 +661,7 @@ class _SummaryBarChart extends StatelessWidget {
       );
     }
 
-    final maxY = entries.fold<double>(
+    final maxY = validEntries.fold<double>(
       budget.toDouble() > 0 ? budget.toDouble() * 1.15 : 100.0,
       (prev, e) => e.realSpent.toDouble() > prev ? e.realSpent.toDouble() * 1.15 : prev,
     );
@@ -595,10 +683,10 @@ class _SummaryBarChart extends StatelessWidget {
 
     final interval = calculateNiceInterval(maxY);
 
-    final barGroups = entries.map((e) {
+    final barGroups = validEntries.map((e) {
       final isOver = e.realSpent > budget;
       final color = isOver ? AppColors.error : AppColors.primary;
-      final idx = e.index - 1;
+      final idx = validEntries.indexOf(e);
 
       return BarChartGroupData(
         x: idx,
@@ -628,7 +716,8 @@ class _SummaryBarChart extends StatelessWidget {
             touchTooltipData: BarTouchTooltipData(
               getTooltipColor: (_) => AppColors.surfaceHighlight,
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                final entry = entries[groupIndex];
+                if (groupIndex < 0 || groupIndex >= validEntries.length) return null;
+                final entry = validEntries[groupIndex];
                 final isOver = entry.realSpent > budget;
                 final label = isWeekly
                     ? 'Week ${entry.index}'
@@ -666,12 +755,12 @@ class _SummaryBarChart extends StatelessWidget {
                 reservedSize: 24,
                 getTitlesWidget: (val, _) {
                   final idx = val.toInt();
-                  if (idx < 0 || idx >= entries.length) {
+                  if (idx < 0 || idx >= validEntries.length) {
                     return const SizedBox.shrink();
                   }
                   final label = isWeekly
-                      ? 'W${entries[idx].index}'
-                      : _monthAbbr(entries[idx].index);
+                      ? 'W${validEntries[idx].index}'
+                      : _monthAbbr(validEntries[idx].index);
                   return Text(
                     label,
                     style: const TextStyle(
