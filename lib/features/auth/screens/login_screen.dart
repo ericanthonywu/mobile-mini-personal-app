@@ -131,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          'Masukkan PIN untuk melanjutkan',
+          'Enter PIN to continue',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.textSecondary,
           ),

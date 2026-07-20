@@ -139,7 +139,7 @@ ApiError parseApiError(Object error) {
     if (error.type == DioExceptionType.connectionError) {
       return const ApiError(
         ApiErrorType.connection,
-        'Tidak dapat terhubung ke server. Pastikan backend sudah berjalan.',
+        'Unable to connect to server. Please check your connection.',
       );
     }
     if (error.type == DioExceptionType.connectionTimeout ||
@@ -147,7 +147,7 @@ ApiError parseApiError(Object error) {
         error.type == DioExceptionType.sendTimeout) {
       return const ApiError(
         ApiErrorType.timeout,
-        'Koneksi timeout. Coba lagi.',
+        'Connection timed out. Please try again.',
       );
     }
 
@@ -155,18 +155,18 @@ ApiError parseApiError(Object error) {
     if (statusCode >= 500) {
       return ApiError(
         ApiErrorType.serverError,
-        serverMessage ?? 'Server error. Coba lagi nanti.',
+        serverMessage ?? 'Server error. Please try again later.',
       );
     }
     if (statusCode >= 400) {
       return ApiError(
         ApiErrorType.clientError,
-        serverMessage ?? 'Permintaan tidak valid.',
+        serverMessage ?? 'Invalid request.',
       );
     }
   }
 
-  return const ApiError(ApiErrorType.unknown, 'Terjadi kesalahan. Coba lagi.');
+  return const ApiError(ApiErrorType.unknown, 'An error occurred. Please try again.');
 }
 
 /// Backwards-compatible string extractor for existing call sites.

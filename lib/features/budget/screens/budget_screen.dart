@@ -23,7 +23,7 @@ class BudgetScreen extends ConsumerWidget {
             backgroundColor: AppColors.background,
             scrolledUnderElevation: 0,
             surfaceTintColor: Colors.transparent,
-            title: Text('Target & Analisis Budget', style: Theme.of(context).textTheme.headlineSmall),
+            title: Text('Budget Analysis', style: Theme.of(context).textTheme.headlineSmall),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
@@ -45,7 +45,7 @@ class BudgetScreen extends ConsumerWidget {
                       Text(e.toString(), style: const TextStyle(color: AppColors.error)),
                       TextButton(
                         onPressed: () => ref.refresh(budgetProvider),
-                        child: const Text('Coba Lagi'),
+                        child: const Text('Try Again'),
                       ),
                     ],
                   ),
@@ -54,20 +54,20 @@ class BudgetScreen extends ConsumerWidget {
               data: (budget) => SliverList(
                 delegate: SliverChildListDelegate([
                   // Weekly section
-                  _SectionHeader(title: 'Minggu Ini', subtitle: '${DateFormatter.short(budget.week.start)} – ${DateFormatter.short(budget.week.end)}'),
+                  _SectionHeader(title: 'This Week', subtitle: '${DateFormatter.short(budget.week.start)} – ${DateFormatter.short(budget.week.end)}'),
                   const SizedBox(height: 12),
-                  _BudgetRingCard(period: budget.week, label: 'Mingguan'),
+                  _BudgetRingCard(period: budget.week, label: 'Weekly'),
                   const SizedBox(height: 20),
 
                   // Monthly section
-                  _SectionHeader(title: 'Bulan Ini', subtitle: DateFormatter.monthYear(budget.month.start)),
+                  _SectionHeader(title: 'This Month', subtitle: DateFormatter.monthYear(budget.month.start)),
                   const SizedBox(height: 12),
-                  _BudgetRingCard(period: budget.month, label: 'Bulanan'),
+                  _BudgetRingCard(period: budget.month, label: 'Monthly'),
                   const SizedBox(height: 20),
 
                   // Real vs Total breakdown
                   _ComparisonBarCard(
-                    label: 'Perbandingan Pengeluaran Real & Total',
+                    label: 'Actual vs Total Spending Breakdown',
                     realSpent: budget.month.realSpent,
                     totalSpent: budget.month.totalSpent,
                     budget: budget.month.budget,
@@ -180,7 +180,7 @@ class _BudgetRingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _StatRow(
-                  label: 'Terpakai',
+                  label: 'Spent',
                   value: CurrencyFormatter.format(period.realSpent),
                   color: _color,
                 ),
@@ -192,7 +192,7 @@ class _BudgetRingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _StatRow(
-                  label: period.isOverBudget ? 'Over Budget' : 'Sisa Budget',
+                  label: period.isOverBudget ? 'Over Budget' : 'Remaining',
                   value: CurrencyFormatter.format(
                     period.isOverBudget ? (period.realSpent - period.budget) : period.remaining,
                   ),
@@ -201,7 +201,7 @@ class _BudgetRingCard extends StatelessWidget {
                 if (period.ignoredAmount > 0) ...[
                   const SizedBox(height: 8),
                   _StatRow(
-                    label: 'Diabaikan',
+                    label: 'Ignored',
                     value: CurrencyFormatter.format(period.ignoredAmount),
                     color: AppColors.textSecondary,
                   ),
@@ -284,7 +284,7 @@ class _ComparisonBarCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, _) {
-                        final labels = ['Aktual', 'Total', 'Budget'];
+                        final labels = ['Actual', 'Total', 'Budget'];
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
@@ -347,14 +347,14 @@ class _StatsGrid extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _StatCard(
-              title: 'Sisa Budget Minggu Ini',
+              title: 'Weekly Remaining',
               value: CurrencyFormatter.format(budget.week.remaining),
               icon: Icons.calendar_view_week_rounded,
               color: budget.week.isOverBudget ? AppColors.error : AppColors.success,
             )),
             const SizedBox(width: 12),
             Expanded(child: _StatCard(
-              title: 'Sisa Budget Bulan Ini',
+              title: 'Monthly Remaining',
               value: CurrencyFormatter.format(budget.month.remaining),
               icon: Icons.calendar_month_rounded,
               color: budget.month.isOverBudget ? AppColors.error : AppColors.success,
@@ -365,14 +365,14 @@ class _StatsGrid extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _StatCard(
-              title: 'Total Transaksi Diabaikan',
+              title: 'Total Ignored',
               value: CurrencyFormatter.format(budget.month.ignoredAmount),
               icon: Icons.visibility_off_outlined,
               color: AppColors.textSecondary,
             )),
             const SizedBox(width: 12),
             Expanded(child: _StatCard(
-              title: 'Penggunaan Budget Bulan',
+              title: 'Monthly Usage',
               value: '${budget.month.percentUsed}%',
               icon: Icons.donut_small_rounded,
               color: budget.month.isOverBudget ? AppColors.error

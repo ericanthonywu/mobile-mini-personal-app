@@ -60,7 +60,7 @@ class TransactionCard extends StatelessWidget {
               backgroundColor: transaction.isIgnored ? AppColors.primary : AppColors.surfaceVariant,
               foregroundColor: transaction.isIgnored ? Colors.white : AppColors.textSecondary,
               icon: transaction.isIgnored ? Icons.visibility_rounded : Icons.visibility_off_outlined,
-              label: transaction.isIgnored ? 'Aktifkan' : 'Abaikan',
+              label: transaction.isIgnored ? 'Restore' : 'Ignore',
               borderRadius: BorderRadius.circular(12),
             ),
           ],
@@ -137,7 +137,7 @@ class TransactionCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  category?.name ?? 'Tanpa Kategori',
+                                  category?.name ?? 'Uncategorized',
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 10,
@@ -174,7 +174,7 @@ class TransactionCard extends StatelessWidget {
                         ),
                         if (isIgnored)
                           const Text(
-                            'Diabaikan',
+                            'Ignored',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 10,

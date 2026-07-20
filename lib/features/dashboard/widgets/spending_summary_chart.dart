@@ -82,7 +82,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Ringkasan Pengeluaran',
+                'Spending Summary',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               // Mode toggle
@@ -95,12 +95,12 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _ModeTab(
-                      label: 'Mingguan',
+                      label: 'Weekly',
                       selected: _isWeekly,
                       onTap: () => _switchMode(true),
                     ),
                     _ModeTab(
-                      label: 'Bulanan',
+                      label: 'Monthly',
                       selected: !_isWeekly,
                       onTap: () => _switchMode(false),
                     ),
@@ -138,7 +138,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Text(
-                    'Gagal memuat data',
+                    'Failed to load data',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
@@ -165,7 +165,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => _PickerSheet(
-        title: 'Pilih Bulan',
+        title: 'Select Month',
         items: months.map((m) => _monthName(m)).toList(),
         selectedIndex: _selectedMonth - 1,
         onSelect: (i) {
@@ -188,7 +188,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => _PickerSheet(
-        title: 'Pilih Tahun',
+        title: 'Select Year',
         items: years.map((y) => y.toString()).toList(),
         selectedIndex: years.indexOf(_selectedYear),
         onSelect: (i) {
@@ -203,8 +203,8 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
 
   String _monthName(int m) {
     const names = [
-      '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
     ];
     return m >= 1 && m <= 12 ? names[m] : '';
   }
@@ -233,7 +233,7 @@ class _BarChartContent extends StatelessWidget {
                   size: 40, color: AppColors.textDisabled),
               const SizedBox(height: 8),
               Text(
-                'Belum ada pengeluaran',
+                'No spending recorded',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -280,12 +280,12 @@ class _BarChartContent extends StatelessWidget {
           children: [
             _Dot(color: AppColors.primary),
             const SizedBox(width: 4),
-            Text('Di bawah anggaran',
+            Text('Under budget',
                 style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
             const SizedBox(width: 12),
             _Dot(color: AppColors.error),
             const SizedBox(width: 4),
-            Text('Melebihi anggaran',
+            Text('Over budget',
                 style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
           ],
         ),
@@ -310,7 +310,7 @@ class _BarChartContent extends StatelessWidget {
                         final end = DateTime.parse(e.endDate!);
                         label = 'W${e.index}: ${_formatShortDate(start)} – ${_formatShortDate(end)}';
                       } else {
-                        label = 'Minggu ${e.index}';
+                        label = 'Week ${e.index}';
                       }
                     } else {
                       label = _shortMonth(e.index);
@@ -407,16 +407,16 @@ class _BarChartContent extends StatelessWidget {
 
   String _shortMonth(int m) {
     const names = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return m >= 1 && m <= 12 ? names[m] : '';
   }
 
   String _formatShortDate(DateTime d) {
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${d.day} ${months[d.month]}';
   }

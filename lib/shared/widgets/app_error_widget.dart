@@ -118,7 +118,7 @@ class _AppErrorWidgetState extends State<AppErrorWidget>
                 child: OutlinedButton.icon(
                   onPressed: widget.onRetry,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Coba Lagi'),
+                  label: const Text('Try Again'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: config.iconColor,
                     side: BorderSide(color: config.borderColor.withValues(alpha: 0.5)),
@@ -161,35 +161,35 @@ class _ErrorConfig {
           icon: Icons.wifi_off_rounded,
           iconColor: AppColors.warning,
           borderColor: AppColors.warning,
-          title: 'Tidak Ada Koneksi',
+          title: 'No Connection',
         );
       case ApiErrorType.timeout:
         return const _ErrorConfig(
           icon: Icons.timer_off_rounded,
           iconColor: AppColors.secondary,
           borderColor: AppColors.secondary,
-          title: 'Koneksi Timeout',
+          title: 'Connection Timed Out',
         );
       case ApiErrorType.serverError:
         return const _ErrorConfig(
           icon: Icons.dns_rounded,
           iconColor: AppColors.error,
           borderColor: AppColors.error,
-          title: 'Server Bermasalah',
+          title: 'Server Error',
         );
       case ApiErrorType.clientError:
         return const _ErrorConfig(
           icon: Icons.block_rounded,
           iconColor: AppColors.warning,
           borderColor: AppColors.warning,
-          title: 'Permintaan Gagal',
+          title: 'Request Failed',
         );
       case ApiErrorType.unknown:
         return const _ErrorConfig(
           icon: Icons.error_outline_rounded,
           iconColor: AppColors.error,
           borderColor: AppColors.error,
-          title: 'Terjadi Kesalahan',
+          title: 'An Error Occurred',
         );
     }
   }

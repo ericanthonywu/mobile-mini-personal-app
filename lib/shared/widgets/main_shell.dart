@@ -113,15 +113,15 @@ class _MainShellState extends State<MainShell> {
             ),
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 1 ? Icons.receipt_long_rounded : Icons.receipt_long_outlined),
-              label: 'Transaksi',
+              label: 'Transactions',
             ),
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 2 ? Icons.label_rounded : Icons.label_outline_rounded),
-              label: 'Kategori',
+              label: 'Categories',
             ),
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 3 ? Icons.pie_chart_rounded : Icons.pie_chart_outline_rounded),
-              label: 'Anggaran',
+              label: 'Budget',
             ),
           ],
         ),

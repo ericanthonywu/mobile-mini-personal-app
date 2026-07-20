@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/core/utils/currency_formatter.dart';
-import 'package:expense_tracker/core/utils/date_formatter.dart';
 import 'package:expense_tracker/features/transactions/providers/transaction_provider.dart';
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
 import 'package:expense_tracker/features/categories/providers/category_provider.dart';
@@ -34,13 +32,13 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   DateTime? _tempCustomTo;
 
   static const List<String> _monthNames = [
-    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   static const List<String> _monthShortNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
   ];
 
   @override
@@ -78,11 +76,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   /// Generates Mon–Sun calendar weeks that cover the given month.
-  ///
-  /// The first week starts on the Monday on or before the 1st of the month.
-  /// The last week ends on the Sunday on or after the last day of the month.
-  /// This means weeks can span month boundaries (e.g. Jul 27–Aug 2), which
-  /// matches the backend's `findWeeklyTotals` logic so totals are always consistent.
   List<Map<String, dynamic>> _getWeeksOfMonth(int year, int month) {
     final weeks = <Map<String, dynamic>>[];
     final firstDayOfMonth = DateTime(year, month, 1);
@@ -142,6 +135,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   void _showDateFilterPicker(BuildContext context) {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    final currentMonth = now.month;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -166,7 +163,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Filter Tanggal', style: Theme.of(context).textTheme.titleLarge),
+                      Text('Filter Date', style: Theme.of(context).textTheme.titleLarge),
                       IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(context),
@@ -194,7 +191,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                'Bulan',
+                                'Month',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: _tempFilterType == 'month' ? Colors.white : AppColors.textSecondary,
@@ -214,7 +211,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               ),
                               alignment: Alignment.center,
                               child: Text(
-                                'Minggu',
+                                'Week',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: _tempFilterType == 'week' ? Colors.white : AppColors.textSecondary,
@@ -267,8 +264,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
-                          onPressed: () => setModalState(() => _tempYear++),
+                          icon: Icon(
+                            Icons.chevron_right,
+                            color: _tempYear >= currentYear
+                                ? AppColors.textDisabled.withOpacity(0.3)
+                                : AppColors.textPrimary,
+                          ),
+                          onPressed: _tempYear >= currentYear
+                              ? null
+                              : () => setModalState(() => _tempYear++),
                         ),
                       ],
                     ),
@@ -286,6 +290,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       itemCount: 12,
                       itemBuilder: (context, index) {
                         final monthNum = index + 1;
+                        final isFutureMonth = _tempYear > currentYear ||
+                            (_tempYear == currentYear && monthNum > currentMonth);
+
                         final isSelected = _selectedDateFrom != null &&
                             _selectedDateFrom!.year == _tempYear &&
                             _selectedDateFrom!.month == monthNum &&
@@ -295,16 +302,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             _selectedDateTo!.day == DateTime(_tempYear, monthNum + 1, 0).day;
 
                         return GestureDetector(
-                          onTap: () {
-                            final start = DateTime(_tempYear, monthNum, 1, 0, 0, 0);
-                            final end = DateTime(_tempYear, monthNum + 1, 0, 23, 59, 59, 999);
-                            _tempMonth = monthNum;
-                            _applyDateFilter(start, end, "${_monthNames[index]} $_tempYear");
-                            Navigator.pop(context);
-                          },
+                          onTap: isFutureMonth
+                              ? null
+                              : () {
+                                  final start = DateTime(_tempYear, monthNum, 1, 0, 0, 0);
+                                  final end = DateTime(_tempYear, monthNum + 1, 0, 23, 59, 59, 999);
+                                  _tempMonth = monthNum;
+                                  _applyDateFilter(start, end, "${_monthNames[index]} $_tempYear");
+                                  Navigator.pop(context);
+                                },
                           child: Container(
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : isFutureMonth
+                                      ? AppColors.surfaceVariant.withOpacity(0.3)
+                                      : AppColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: isSelected ? AppColors.primary : AppColors.border,
@@ -315,7 +328,11 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               _monthShortNames[index],
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: isSelected ? Colors.white : AppColors.textPrimary,
+                                color: isSelected
+                                    ? Colors.white
+                                    : isFutureMonth
+                                        ? AppColors.textDisabled.withOpacity(0.35)
+                                        : AppColors.textPrimary,
                               ),
                             ),
                           ),
@@ -349,17 +366,26 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
-                          onPressed: () {
-                            setModalState(() {
-                              if (_tempMonth == 12) {
-                                _tempMonth = 1;
-                                _tempYear++;
-                              } else {
-                                _tempMonth++;
-                              }
-                            });
-                          },
+                          icon: Icon(
+                            Icons.chevron_right,
+                            color: (_tempYear > currentYear ||
+                                    (_tempYear == currentYear && _tempMonth >= currentMonth))
+                                ? AppColors.textDisabled.withOpacity(0.3)
+                                : AppColors.textPrimary,
+                          ),
+                          onPressed: (_tempYear > currentYear ||
+                                  (_tempYear == currentYear && _tempMonth >= currentMonth))
+                              ? null
+                              : () {
+                                  setModalState(() {
+                                    if (_tempMonth == 12) {
+                                      _tempMonth = 1;
+                                      _tempYear++;
+                                    } else {
+                                      _tempMonth++;
+                                    }
+                                  });
+                                },
                         ),
                       ],
                     ),
@@ -376,23 +402,31 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         final wkEnd = wk['end'] as DateTime;
                         final wkIdx = wk['index'] as int;
 
+                        final isFutureWeek = wkStart.isAfter(now);
+
                         final isSelected = _selectedDateFrom != null &&
                             _selectedDateFrom!.isAtSameMomentAs(wkStart) &&
                             _selectedDateTo!.isAtSameMomentAs(wkEnd);
 
                         return GestureDetector(
-                          onTap: () {
-                            _applyDateFilter(
-                              wkStart,
-                              wkEnd,
-                              "Mgg $wkIdx, ${_monthShortNames[_tempMonth - 1]} $_tempYear",
-                            );
-                            Navigator.pop(context);
-                          },
+                          onTap: isFutureWeek
+                              ? null
+                              : () {
+                                  _applyDateFilter(
+                                    wkStart,
+                                    wkEnd,
+                                    "Wk $wkIdx, ${_monthShortNames[_tempMonth - 1]} $_tempYear",
+                                  );
+                                  Navigator.pop(context);
+                                },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : isFutureWeek
+                                      ? AppColors.surfaceVariant.withOpacity(0.3)
+                                      : AppColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected ? AppColors.primary : AppColors.border,
@@ -402,17 +436,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  "Minggu $wkIdx",
+                                  "Week $wkIdx",
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : AppColors.textPrimary,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : isFutureWeek
+                                            ? AppColors.textDisabled.withOpacity(0.35)
+                                            : AppColors.textPrimary,
                                   ),
                                 ),
                                 Text(
                                   _formatWeekRange(wkStart, wkEnd),
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: isSelected ? Colors.white70 : AppColors.textSecondary,
+                                    color: isSelected
+                                        ? Colors.white70
+                                        : isFutureWeek
+                                            ? AppColors.textDisabled.withOpacity(0.35)
+                                            : AppColors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -431,7 +473,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               ? DateTimeRange(start: _tempCustomFrom!, end: _tempCustomTo!)
                               : null,
                           firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
+                          lastDate: now,
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
@@ -469,7 +511,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             Text(
                               _tempCustomFrom != null && _tempCustomTo != null
                                   ? _formatCustomRangeLabel(_tempCustomFrom!, _tempCustomTo!)
-                                  : 'Pilih Rentang Tanggal',
+                                  : 'Select Date Range',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: _tempCustomFrom != null ? AppColors.textPrimary : AppColors.textSecondary,
@@ -509,7 +551,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          child: const Text('Terapkan', style: TextStyle(fontWeight: FontWeight.w600)),
+                          child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ),
                     ],
@@ -528,7 +570,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           foregroundColor: AppColors.error,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Hapus Filter Tanggal', style: TextStyle(fontWeight: FontWeight.w600)),
+                        child: const Text('Clear Date Filter', style: TextStyle(fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ] else ...[
@@ -564,7 +606,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             backgroundColor: AppColors.background,
             scrolledUnderElevation: 0,
             surfaceTintColor: Colors.transparent,
-            title: Text('Transaksi', style: Theme.of(context).textTheme.headlineSmall),
+            title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(148),
               child: Padding(
@@ -576,7 +618,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       controller: _searchController,
                       onChanged: _applySearch,
                       decoration: InputDecoration(
-                        hintText: 'Cari merchant...',
+                        hintText: 'Search merchant...',
                         prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -596,7 +638,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       child: Row(
                         children: [
                           _FilterChip(
-                            label: 'Semua',
+                            label: 'All',
                             selected: _isIgnoredFilter == null,
                             onTap: () {
                               setState(() => _isIgnoredFilter = null);
@@ -607,7 +649,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ),
                           const SizedBox(width: 8),
                           _FilterChip(
-                            label: 'Aktif',
+                            label: 'Active',
                             selected: _isIgnoredFilter == false,
                             onTap: () {
                               setState(() => _isIgnoredFilter = false);
@@ -618,7 +660,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ),
                           const SizedBox(width: 8),
                           _FilterChip(
-                            label: 'Diabaikan',
+                            label: 'Ignored',
                             selected: _isIgnoredFilter == true,
                             onTap: () {
                               setState(() => _isIgnoredFilter = true);
@@ -629,7 +671,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ),
                           const SizedBox(width: 8),
                           _DateFilterChip(
-                            label: _selectedDateLabel ?? 'Tanggal',
+                            label: _selectedDateLabel ?? 'Date',
                             isSelected: _selectedDateFrom != null,
                             onTap: () => _showDateFilterPicker(context),
                             onClear: _selectedDateFrom != null
@@ -681,7 +723,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                                 const Icon(Icons.receipt_long, size: 14, color: AppColors.textSecondary),
                                 const SizedBox(width: 6),
                                 Text(
-                                  '${state.total} Transaksi',
+                                  '${state.total} Transaction(s)',
                                   style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
@@ -736,7 +778,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             Text(state.error!, style: const TextStyle(color: AppColors.error)),
             TextButton(
               onPressed: () => ref.read(transactionProvider.notifier).fetch(),
-              child: const Text('Coba Lagi'),
+              child: const Text('Try Again'),
             ),
           ],
         ),
@@ -750,7 +792,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           children: [
             Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.textDisabled),
             SizedBox(height: 12),
-            Text('Tidak ada transaksi', style: TextStyle(color: AppColors.textSecondary)),
+            Text('No transactions found', style: TextStyle(color: AppColors.textSecondary)),
           ],
         ),
       );
@@ -808,7 +850,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Pilih Kategori', style: Theme.of(context).textTheme.titleLarge),
+            Text('Select Category', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(tx.merchant, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 16),
@@ -833,7 +875,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             )),
             ListTile(
               leading: const CircleAvatar(radius: 10, backgroundColor: AppColors.textDisabled),
-              title: const Text('Tanpa Kategori'),
+              title: const Text('Uncategorized'),
               onTap: () {
                 Navigator.pop(context);
                 ref.read(transactionProvider.notifier).updateTransaction(
@@ -866,7 +908,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Edit Jumlah', style: Theme.of(context).textTheme.titleLarge),
+            Text('Edit Amount', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text(tx.merchant, style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 20),
@@ -906,7 +948,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text('Save', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -976,7 +1018,7 @@ class _CategoryFilterChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                title: const Text('Semua Kategori'),
+                title: const Text('All Categories'),
                 onTap: () { Navigator.pop(context); onSelected(null); },
               ),
               ...categories.map((c) => ListTile(
@@ -1002,7 +1044,7 @@ class _CategoryFilterChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Kategori',
+              'Category',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -1104,9 +1146,9 @@ class _SortFilterChip extends StatelessWidget {
 
   String get _label {
     if (sortBy == 'amount') {
-      return sortOrder == 'desc' ? 'Termahal' : 'Termurah';
+      return sortOrder == 'desc' ? 'Highest' : 'Lowest';
     } else {
-      return sortOrder == 'desc' ? 'Terbaru' : 'Terlama';
+      return sortOrder == 'desc' ? 'Newest' : 'Oldest';
     }
   }
 
@@ -1122,19 +1164,19 @@ class _SortFilterChip extends StatelessWidget {
       itemBuilder: (context) => [
         const PopupMenuItem(
           value: MapEntry('date', 'desc'),
-          child: Text('Terbaru', style: TextStyle(color: AppColors.textPrimary)),
+          child: Text('Newest', style: TextStyle(color: AppColors.textPrimary)),
         ),
         const PopupMenuItem(
           value: MapEntry('date', 'asc'),
-          child: Text('Terlama', style: TextStyle(color: AppColors.textPrimary)),
+          child: Text('Oldest', style: TextStyle(color: AppColors.textPrimary)),
         ),
         const PopupMenuItem(
           value: MapEntry('amount', 'desc'),
-          child: Text('Termahal', style: TextStyle(color: AppColors.textPrimary)),
+          child: Text('Highest', style: TextStyle(color: AppColors.textPrimary)),
         ),
         const PopupMenuItem(
           value: MapEntry('amount', 'asc'),
-          child: Text('Termurah', style: TextStyle(color: AppColors.textPrimary)),
+          child: Text('Lowest', style: TextStyle(color: AppColors.textPrimary)),
         ),
       ],
       child: AnimatedContainer(

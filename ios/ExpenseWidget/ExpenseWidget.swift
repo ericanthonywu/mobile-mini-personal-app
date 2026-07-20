@@ -237,7 +237,7 @@ struct BudgetTimelineProvider: TimelineProvider {
             if let cachedSummary = cachedSummary {
                 return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, error: nil, alertCount: cachedAlerts)
             }
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Silakan masuk ke aplikasi", alertCount: 0)
+            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Please log into the app", alertCount: 0)
         }
         do {
             // Fetch budget and alert count concurrently
@@ -254,7 +254,7 @@ struct BudgetTimelineProvider: TimelineProvider {
             if let cachedSummary = cachedSummary {
                 return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, error: nil, alertCount: cachedAlerts)
             }
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Gagal memperbarui data", alertCount: 0)
+            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Failed to update data", alertCount: 0)
         }
     }
 }
@@ -265,9 +265,9 @@ extension Int {
     var rupiahCompact: String {
         if self >= 1_000_000 {
             let val = Double(self) / 1_000_000.0
-            return String(format: val.truncatingRemainder(dividingBy: 1) == 0 ? "%.0fjt" : "%.1fjt", val)
+            return String(format: val.truncatingRemainder(dividingBy: 1) == 0 ? "%.0fM" : "%.1fM", val)
         } else if self >= 1_000 {
-            return String(format: "%.0frb", Double(self) / 1_000.0)
+            return String(format: "%.0fK", Double(self) / 1_000.0)
         }
         return "Rp\(self)"
     }
@@ -328,7 +328,7 @@ struct PeriodSection: View {
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
-            // Progress bar — native gauge on iOS 26
+            // Progress bar — native gauge on iOS 16
             ProgressView(value: progress)
                 .tint(color)
                 .scaleEffect(x: 1, y: 1.6, anchor: .center)
@@ -336,7 +336,7 @@ struct PeriodSection: View {
             // Remaining / overage
             Text(period.isOverBudget
                  ? "Over budget \((period.realSpent - period.budget).rupiahCompact)"
-                 : "Sisa budget \(period.remaining.rupiahCompact)")
+                 : "Remaining \(period.remaining.rupiahCompact)")
                 .font(.caption2)
                 .fontWeight(.medium)
                 .foregroundStyle(color.opacity(0.85))
@@ -384,11 +384,11 @@ struct RefreshButton: View {
 struct SmallWidgetView: View {
     let entry: WidgetEntry
 
-    /// Short date string in WIB locale, e.g. "Sab, 19 Jul"
+    /// Short date string in English locale, e.g. "Sat, 19 Jul"
     var todayShort: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "EEE, d MMM"
-        fmt.locale = Locale(identifier: "id_ID")
+        fmt.locale = Locale(identifier: "en_US")
         return fmt.string(from: entry.date)
     }
 
@@ -416,7 +416,7 @@ struct SmallWidgetView: View {
                 }
                 Spacer()
                 if let week = entry.week {
-                    PeriodSection(label: "Minggu Ini", period: week)
+                    PeriodSection(label: "This Week", period: week)
                 }
             }
             .padding(14)
@@ -429,11 +429,11 @@ struct SmallWidgetView: View {
 struct MediumWidgetView: View {
     let entry: WidgetEntry
 
-    /// Short date string in WIB locale, e.g. "Sab, 19 Jul"
+    /// Short date string in English locale, e.g. "Sat, 19 Jul"
     var todayShort: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "EEE, d MMM"
-        fmt.locale = Locale(identifier: "id_ID")
+        fmt.locale = Locale(identifier: "en_US")
         return fmt.string(from: entry.date)
     }
 
@@ -447,7 +447,7 @@ struct MediumWidgetView: View {
                         Image(systemName: "creditcard.fill")
                             .font(.caption2)
                             .foregroundStyle(.tint)
-                        Text("Pengeluaran Saya")
+                        Text("My Expenses")
                             .font(.caption2)
                             .fontWeight(.semibold)
                             .foregroundStyle(.tint)
@@ -470,7 +470,7 @@ struct MediumWidgetView: View {
                     }
                     Spacer()
                     if let week = entry.week {
-                        PeriodSection(label: "Minggu Ini", period: week)
+                        PeriodSection(label: "This Week", period: week)
                     }
                 }
 
@@ -483,7 +483,7 @@ struct MediumWidgetView: View {
                         .foregroundStyle(.tertiary)
                     Spacer()
                     if let month = entry.month {
-                        PeriodSection(label: "Bulan Ini", period: month)
+                        PeriodSection(label: "This Month", period: month)
                     }
                 }
             }
@@ -494,7 +494,7 @@ struct MediumWidgetView: View {
     var shortDate: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "d MMM"
-        fmt.locale = Locale(identifier: "id_ID")
+        fmt.locale = Locale(identifier: "en_US")
         return fmt.string(from: entry.date)
     }
 }
@@ -511,7 +511,7 @@ struct LargeWidgetView: View {
             VStack(alignment: .leading, spacing: 14) {
                 // Header with refresh button
                 HStack {
-                    Label("Pengeluaran Saya", systemImage: "creditcard.fill")
+                    Label("My Expenses", systemImage: "creditcard.fill")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.tint)
@@ -535,13 +535,13 @@ struct LargeWidgetView: View {
                 Divider()
 
                 if let week = entry.week {
-                    PeriodSection(label: "Minggu Ini", period: week)
+                    PeriodSection(label: "This Week", period: week)
                 }
 
                 Divider()
 
                 if let month = entry.month {
-                    PeriodSection(label: "Bulan Ini", period: month)
+                    PeriodSection(label: "This Month", period: month)
                 }
 
                 Spacer()
@@ -550,7 +550,7 @@ struct LargeWidgetView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption2)
-                    Text("Diperbarui \(timeString)")
+                    Text("Updated \(timeString)")
                         .font(.caption2)
                 }
                 .foregroundStyle(.quaternary)
@@ -562,7 +562,7 @@ struct LargeWidgetView: View {
     var dateTimeString: String {
         let fmt = DateFormatter()
         fmt.dateFormat = "EEE, d MMM"
-        fmt.locale = Locale(identifier: "id_ID")
+        fmt.locale = Locale(identifier: "en_US")
         return fmt.string(from: entry.date)
     }
 
@@ -584,13 +584,13 @@ struct LockScreenRectangularView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "creditcard.fill")
                         .font(.system(size: 9))
-                    Text("PENGELUARAN")
+                    Text("EXPENSES")
                         .font(.system(size: 9, weight: .bold))
                 }
                 .foregroundStyle(.secondary)
 
                 HStack {
-                    Text("Minggu ini:")
+                    Text("This week:")
                         .font(.system(size: 11, weight: .medium))
                     Spacer()
                     Text("\(week.realSpent.rupiahCompact) / \(week.budget.rupiahCompact)")
@@ -601,7 +601,7 @@ struct LockScreenRectangularView: View {
 
                 if let month = entry.month {
                     HStack {
-                        Text("Bulan ini:")
+                        Text("This month:")
                             .font(.system(size: 11, weight: .medium))
                         Spacer()
                         Text("\(month.realSpent.rupiahCompact) / \(month.budget.rupiahCompact)")
@@ -615,7 +615,7 @@ struct LockScreenRectangularView: View {
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 10))
-                Text(entry.error ?? "Pengeluaran Saya")
+                Text(entry.error ?? "My Expenses")
                     .font(.caption2)
             }
         }
@@ -647,17 +647,17 @@ struct LockScreenInlineView: View {
         if let week = entry.week {
             if let month = entry.month {
                 Label(
-                    "Mgg: \(week.realSpent.rupiahCompact)/\(week.budget.rupiahCompact) · Bln: \(month.realSpent.rupiahCompact)/\(month.budget.rupiahCompact)",
+                    "Wk: \(week.realSpent.rupiahCompact)/\(week.budget.rupiahCompact) · Mo: \(month.realSpent.rupiahCompact)/\(month.budget.rupiahCompact)",
                     systemImage: "creditcard.fill"
                 )
             } else {
                 Label(
-                    "Mgg: \(week.realSpent.rupiahCompact)/\(week.budget.rupiahCompact)",
+                    "Wk: \(week.realSpent.rupiahCompact)/\(week.budget.rupiahCompact)",
                     systemImage: "creditcard.fill"
                 )
             }
         } else {
-            Label("Pengeluaran Saya", systemImage: "creditcard.fill")
+            Label("My Expenses", systemImage: "creditcard.fill")
         }
     }
 }
@@ -695,8 +695,8 @@ struct ExpenseWidget: Widget {
         StaticConfiguration(kind: kind, provider: BudgetTimelineProvider()) { entry in
             ExpenseWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Pengeluaran & Budget")
-        .description("Pantau sisa budget dan status pengeluaran mingguan & bulanan Anda.")
+        .configurationDisplayName("Expenses & Budget")
+        .description("Track your weekly and monthly budget limits and real spending.")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,

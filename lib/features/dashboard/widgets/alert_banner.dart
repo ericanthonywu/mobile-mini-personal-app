@@ -63,7 +63,7 @@ class _AlertBannerState extends ConsumerState<AlertBanner>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Gagal menyelesaikan alert. Coba lagi.'),
+            content: Text('Failed to resolve alerts. Try again.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -105,7 +105,7 @@ class _AlertBannerState extends ConsumerState<AlertBanner>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$count email gagal diproses',
+                        '$count email(s) failed to parse',
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               color: AppColors.warning,
                               fontWeight: FontWeight.w700,
@@ -166,7 +166,7 @@ class _AlertBannerState extends ConsumerState<AlertBanner>
                             )
                           : const Icon(Icons.check_circle_outline_rounded,
                               size: 15),
-                      label: const Text('Tandai Semua Selesai'),
+                      label: const Text('Mark All Resolved'),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.warning,
                         textStyle: const TextStyle(

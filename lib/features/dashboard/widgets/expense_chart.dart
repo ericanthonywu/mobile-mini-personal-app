@@ -132,7 +132,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Grafik Pengeluaran',
+                    'Expense Chart',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 2),
@@ -159,7 +159,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                         const SizedBox(width: 4),
                         Text(
                           isOverBudget
-                              ? 'Melebihi batas ${CurrencyFormatter.compact(budget)}'
+                              ? 'Over limit by ${CurrencyFormatter.compact(budget)}'
                               : '${CurrencyFormatter.compact(realCumulative)} / ${CurrencyFormatter.compact(budget)}',
                           style: TextStyle(
                             fontSize: 9,
@@ -182,12 +182,12 @@ class _ExpenseChartState extends State<ExpenseChart>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _PeriodTab(
-                      label: 'Minggu',
+                      label: 'Week',
                       selected: _isWeekly,
                       onTap: () => _switchPeriod(true),
                     ),
                     _PeriodTab(
-                      label: 'Bulan',
+                      label: 'Month',
                       selected: !_isWeekly,
                       onTap: () => _switchPeriod(false),
                     ),
@@ -205,7 +205,7 @@ class _ExpenseChartState extends State<ExpenseChart>
             children: [
               _LegendItem(
                 color: lineColor,
-                label: 'Pengeluaran Nyata',
+                label: 'Actual Spent',
                 dashed: false,
               ),
               // Tappable total line toggle
@@ -245,7 +245,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                       const SizedBox(width: 4),
                       _LegendItem(
                         color: AppColors.textDisabled.withOpacity(_showTotal ? 1 : 0.4),
-                        label: 'Termasuk diabaikan',
+                        label: 'Incl. ignored',
                         dashed: true,
                       ),
                     ],
@@ -254,7 +254,7 @@ class _ExpenseChartState extends State<ExpenseChart>
               ),
               _LegendItem(
                 color: AppColors.error,
-                label: 'Batas',
+                label: 'Limit',
                 dashed: true,
               ),
             ],
@@ -446,7 +446,7 @@ class _ExpenseChartState extends State<ExpenseChart>
   }
 
   String _dayAbbr(int weekday) {
-    const abbrs = ['', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+    const abbrs = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return weekday < abbrs.length ? abbrs[weekday] : '';
   }
 }

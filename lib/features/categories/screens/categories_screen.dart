@@ -22,14 +22,14 @@ class CategoriesScreen extends ConsumerWidget {
             backgroundColor: AppColors.background,
             scrolledUnderElevation: 0,
             surfaceTintColor: Colors.transparent,
-            title: Text('Kategori', style: Theme.of(context).textTheme.headlineSmall),
+            title: Text('Categories', style: Theme.of(context).textTheme.headlineSmall),
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // Categories section
-                Text('Kategori Saya', style: Theme.of(context).textTheme.titleLarge),
+                Text('My Categories', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
                 categoriesAsync.when(
                   loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -44,7 +44,7 @@ class CategoriesScreen extends ConsumerWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Aturan Merchant', style: Theme.of(context).textTheme.titleLarge),
+                    Text('Merchant Rules', style: Theme.of(context).textTheme.titleLarge),
                     IconButton(
                       icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
                       onPressed: () => _showAddRuleDialog(context, ref),
@@ -53,7 +53,7 @@ class CategoriesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Otomatis kategorikan transaksi berdasarkan nama merchant',
+                  'Automatically categorize transactions by merchant name',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
@@ -68,7 +68,7 @@ class CategoriesScreen extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Text(
-                            'Belum ada aturan. Tap + untuk menambah.',
+                            'No rules yet. Tap + to add one.',
                             style: TextStyle(color: AppColors.textSecondary),
                           ),
                         )
@@ -104,7 +104,7 @@ class CategoriesScreen extends ConsumerWidget {
     final categories = ref.read(categoriesProvider).valueOrNull ?? [];
     if (categories.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Buat kategori dulu sebelum menambah aturan')),
+        const SnackBar(content: Text('Please create a category first before adding rules')),
       );
       return;
     }
@@ -166,7 +166,7 @@ class _CategoryTile extends ConsumerWidget {
                   const PopupMenuItem(value: 'edit', child: Text('Edit')),
                   const PopupMenuItem(
                     value: 'delete',
-                    child: Text('Hapus', style: TextStyle(color: AppColors.error)),
+                    child: Text('Delete', style: TextStyle(color: AppColors.error)),
                   ),
                 ],
               ),
@@ -191,10 +191,10 @@ class _CategoryTile extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Hapus Kategori?'),
-        content: Text('Hapus "${cat.name}"? Transaksi dengan kategori ini akan kehilangan kategorisasinya.'),
+        title: const Text('Delete Category?'),
+        content: Text('Delete "${cat.name}"? Transactions assigned to this category will lose their category.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
@@ -208,7 +208,7 @@ class _CategoryTile extends ConsumerWidget {
                 }
               }
             },
-            child: const Text('Hapus', style: TextStyle(color: AppColors.error)),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -335,17 +335,17 @@ class _AddCategorySheetState extends State<_AddCategorySheet> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.existing != null ? 'Edit Kategori' : 'Tambah Kategori',
+            widget.existing != null ? 'Edit Category' : 'Add Category',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _nameController,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Nama Kategori'),
+            decoration: const InputDecoration(labelText: 'Category Name'),
           ),
           const SizedBox(height: 16),
-          Text('Pilih Warna', style: Theme.of(context).textTheme.titleSmall),
+          Text('Select Color', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           // Color presets
           Wrap(
@@ -378,7 +378,7 @@ class _AddCategorySheetState extends State<_AddCategorySheet> {
             onPressed: _isLoading ? null : _submit,
             child: _isLoading
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Simpan'),
+                : const Text('Save'),
           ),
         ],
       ),
@@ -431,9 +431,9 @@ class _AddRuleSheetState extends State<_AddRuleSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tambah Aturan Merchant', style: Theme.of(context).textTheme.titleLarge),
+          Text('Add Merchant Rule', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 4),
-          Text('Jika nama merchant mengandung teks ini, otomatis kategorikan.',
+          Text('Automatically assign a category whenever merchant name contains this keyword.',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 16),
           TextField(
@@ -441,14 +441,14 @@ class _AddRuleSheetState extends State<_AddRuleSheet> {
             autofocus: true,
             textCapitalization: TextCapitalization.characters,
             decoration: const InputDecoration(
-              labelText: 'Pola Merchant (mis. SUPERINDO)',
+              labelText: 'Merchant Keyword (e.g. SUPERINDO)',
             ),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<CategoryModel>(
             value: _selectedCategory,
             dropdownColor: AppColors.surfaceVariant,
-            decoration: const InputDecoration(labelText: 'Kategori'),
+            decoration: const InputDecoration(labelText: 'Category'),
             items: widget.categories.map((cat) => DropdownMenuItem(
               value: cat,
               child: Row(
@@ -466,7 +466,7 @@ class _AddRuleSheetState extends State<_AddRuleSheet> {
             onPressed: _isLoading ? null : _submit,
             child: _isLoading
                 ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                : const Text('Simpan Aturan'),
+                : const Text('Save Rule'),
           ),
         ],
       ),

@@ -72,12 +72,12 @@ class DashboardScreen extends ConsumerWidget {
                     data: (budget) => Column(
                       children: [
                         _BudgetCard(
-                          label: 'Minggu Ini',
+                          label: 'This Week',
                           period: budget.week,
                         ),
                         const SizedBox(height: 12),
                         _BudgetCard(
-                          label: 'Bulan Ini',
+                          label: 'This Month',
                           period: budget.month,
                         ),
                       ],
@@ -101,11 +101,11 @@ class DashboardScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Transaksi Terbaru',
+                      Text('Recent Transactions',
                           style: Theme.of(context).textTheme.titleLarge),
                       TextButton(
                         onPressed: () => context.go('/transactions'),
-                        child: const Text('Lihat Semua'),
+                        child: const Text('View All'),
                       ),
                     ],
                   ),
@@ -159,7 +159,7 @@ class DashboardScreen extends ConsumerWidget {
         children: [
           Text('Eric\'s Expense Tracker',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
-          Text('Pengeluaran Saya',
+          Text('My Expenses',
               style: Theme.of(context).textTheme.headlineSmall),
         ],
       ),
@@ -167,7 +167,7 @@ class DashboardScreen extends ConsumerWidget {
         IconButton(
           icon: const Icon(Icons.logout_rounded, color: AppColors.textSecondary),
           onPressed: () => ref.read(authProvider.notifier).logout(),
-          tooltip: 'Keluar',
+          tooltip: 'Log Out',
         ),
       ],
     );
@@ -236,7 +236,7 @@ class _BudgetCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Sudah Terpakai', style: Theme.of(context).textTheme.labelMedium),
+                  Text('Spent', style: Theme.of(context).textTheme.labelMedium),
                   const SizedBox(height: 2),
                   Text(
                     CurrencyFormatter.format(period.realSpent),
@@ -250,7 +250,7 @@ class _BudgetCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Target Budget', style: Theme.of(context).textTheme.labelMedium),
+                  Text('Budget', style: Theme.of(context).textTheme.labelMedium),
                   const SizedBox(height: 2),
                   Text(
                     CurrencyFormatter.format(period.budget),
@@ -281,8 +281,8 @@ class _BudgetCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             period.isOverBudget
-                ? 'Melebihi target budget ${CurrencyFormatter.format(period.realSpent - period.budget)}'
-                : 'Sisa budget ${CurrencyFormatter.format(period.remaining)}',
+                ? 'Over budget by ${CurrencyFormatter.format(period.realSpent - period.budget)}'
+                : '${CurrencyFormatter.format(period.remaining)} remaining',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: _progressColor),
           ),
         ],
@@ -308,25 +308,25 @@ class _ExpenseComparisonCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Rincian Pengeluaran Bulan Ini',
+          Text('Monthly Breakdown',
               style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 16),
           _ComparisonRow(
-            label: 'Total Semua Transaksi',
+            label: 'Total Transactions',
             amount: budget.month.totalSpent,
             color: AppColors.textPrimary,
           ),
           const SizedBox(height: 10),
           _ComparisonRow(
-            label: 'Pengeluaran Aktual',
-            subtitle: '(tidak termasuk yang diabaikan)',
+            label: 'Actual Spent',
+            subtitle: '(excluding ignored)',
             amount: budget.month.realSpent,
             color: AppColors.primary,
           ),
           if (budget.month.ignoredAmount > 0) ...[
             const SizedBox(height: 10),
             _ComparisonRow(
-              label: 'Transaksi Diabaikan',
+              label: 'Ignored Amount',
               amount: budget.month.ignoredAmount,
               color: AppColors.textSecondary,
             ),
@@ -393,14 +393,14 @@ class _SyncFab extends StatelessWidget {
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.lastMessage ?? 'Berhasil memperbarui data transaksi')),
+                  SnackBar(content: Text(state.lastMessage ?? 'Transaction sync completed')),
                 );
                 ref.invalidate(budgetProvider);
                 ref.invalidate(recentTransactionsProvider);
                 ref.invalidate(budgetChartProvider);
               }
             },
-      tooltip: 'Sinkronkan Email BCA',
+      tooltip: 'Sync BCA Emails',
       child: pollState.isPolling
           ? const SizedBox(
               width: 24,
@@ -422,12 +422,12 @@ class _EmptyState extends StatelessWidget {
           children: [
             const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textDisabled),
             const SizedBox(height: 12),
-            Text('Belum Ada Transaksi',
+            Text('No Transactions Yet',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 )),
             const SizedBox(height: 4),
-            Text('Tekan tombol sinkronkan di bawah untuk mengambil transaksi dari email BCA',
+            Text('Tap the sync button below to fetch transactions from BCA emails',
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center),
           ],

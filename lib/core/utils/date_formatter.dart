@@ -5,11 +5,11 @@ import 'package:intl/intl.dart';
 class DateFormatter {
   DateFormatter._();
 
-  static final DateFormat _full = DateFormat('dd MMM yyyy, HH:mm', 'id_ID');
-  static final DateFormat _date = DateFormat('dd MMM yyyy', 'id_ID');
-  static final DateFormat _short = DateFormat('dd MMM', 'id_ID');
-  static final DateFormat _dayName = DateFormat('EEE', 'id_ID');
-  static final DateFormat _monthYear = DateFormat('MMMM yyyy', 'id_ID');
+  static final DateFormat _full = DateFormat('dd MMM yyyy, HH:mm', 'en_US');
+  static final DateFormat _date = DateFormat('dd MMM yyyy', 'en_US');
+  static final DateFormat _short = DateFormat('dd MMM', 'en_US');
+  static final DateFormat _dayName = DateFormat('EEE', 'en_US');
+  static final DateFormat _monthYear = DateFormat('MMMM yyyy', 'en_US');
 
   /// Full date + time: "15 Jul 2026, 20:28"
   static String full(DateTime dt) => _full.format(dt);
@@ -20,13 +20,13 @@ class DateFormatter {
   /// Short date: "15 Jul"
   static String short(DateTime dt) => _short.format(dt);
 
-  /// Day name abbreviation: "Sen", "Sel", etc.
+  /// Day name abbreviation: "Mon", "Tue", etc.
   static String dayName(DateTime dt) => _dayName.format(dt);
 
-  /// Month + year: "Juli 2026"
+  /// Month + year: "July 2026"
   static String monthYear(DateTime dt) => _monthYear.format(dt);
 
-  /// "Today HH:mm", "Yesterday HH:mm", or full date+time
+  /// "Today, HH:mm", "Yesterday, HH:mm", or full date+time
   static String relativeWithTime(DateTime dt) {
     final local = dt.toLocal();
     final now = DateTime.now();
@@ -35,8 +35,8 @@ class DateFormatter {
     final diff = today.difference(d).inDays;
     final timeStr = DateFormat('HH:mm').format(local);
 
-    if (diff == 0) return 'Hari ini, $timeStr';
-    if (diff == 1) return 'Kemarin, $timeStr';
+    if (diff == 0) return 'Today, $timeStr';
+    if (diff == 1) return 'Yesterday, $timeStr';
     return full(local);
   }
 
@@ -48,8 +48,8 @@ class DateFormatter {
     final d = DateTime(local.year, local.month, local.day);
     final diff = today.difference(d).inDays;
 
-    if (diff == 0) return 'Hari ini';
-    if (diff == 1) return 'Kemarin';
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
     return date(local);
   }
 }
