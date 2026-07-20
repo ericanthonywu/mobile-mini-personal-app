@@ -113,15 +113,18 @@ class _ExpenseChartState extends State<ExpenseChart>
         ? totalCumulative.toDouble()
         : realCumulative.toDouble();
 
-    // Smart maxY: when spending is very low relative to budget, avoid crushing
-    // the line to the bottom. Use whichever is larger: budget*1.15 OR
-    // actual*3 (gives room to rise), with a minimum of 1.0 to avoid
-    // division-by-zero in the chart.
-    final double maxY = [
-      budget.toDouble() * 0.4,   // at least 40% of budget so line has room
-      effectiveMax * 1.3,         // 30% headroom above actual spending
-      1.0,
-    ].reduce((a, b) => a > b ? a : b);
+    // Smart maxY: scale to actual spending so the line always looks visually
+    // meaningful. When spending is low relative to budget, use spending * 2.5
+    // so the line fills roughly 40% of the chart height. When spending is
+    // near or over budget, scale to budget with headroom.
+    final double maxY = () {
+      if (effectiveMax <= 0) return budget.toDouble() * 0.5.clamp(1.0, double.infinity);
+      if (effectiveMax >= budget) return effectiveMax * 1.15; // over/at budget
+      // Under budget: use the larger of spending*2.5 or budget*1.15,
+      // but never less than spending*2.0 so the line is always visible.
+      return (effectiveMax * 2.5).clamp(effectiveMax * 2.0, budget.toDouble() * 1.15);
+    }()
+        .clamp(1.0, double.infinity);
 
     // Date range subtitle
     String periodSubtitle = '';
@@ -302,9 +305,11 @@ class _ExpenseChartState extends State<ExpenseChart>
               builder: (context, _) {
                 final totalOpacity = _totalLineAnimation.value;
 
-                // Guard interval against zero budget (prevents infinite grid lines)
-                final gridInterval = budget > 0 ? (budget / 4).toDouble() : maxY / 4;
-                final leftInterval = budget > 0 ? (budget / 2).toDouble() : maxY / 2;
+                // Base grid/axis intervals on maxY (spending-relative) so they
+                // are always within the visible chart area. Budget-based
+                // intervals would be off-screen when spending << budget.
+                final gridInterval = maxY / 4;
+                final leftInterval = maxY / 2;
 
                 return SizedBox(
                   height: 180,
@@ -375,8 +380,12 @@ class _ExpenseChartState extends State<ExpenseChart>
                       ),
                       extraLinesData: ExtraLinesData(
                         horizontalLines: [
+                          // Pin the limit line at 88% of the visible chart
+                          // height so it's always on-screen — even when
+                          // spending is far below the actual budget. The label
+                          // still shows the real budget value so it's accurate.
                           HorizontalLine(
-                            y: budget.toDouble(),
+                            y: maxY * 0.88,
                             color: AppColors.error.withValues(alpha: 0.75),
                             strokeWidth: 1.5,
                             dashArray: [6, 4],
@@ -390,7 +399,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                                 fontWeight: FontWeight.w700,
                               ),
                               labelResolver: (_) =>
-                                  CurrencyFormatter.compact(budget),
+                                  'Limit: ${CurrencyFormatter.compact(budget)}',
                             ),
                           ),
                         ],
