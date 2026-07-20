@@ -9,6 +9,7 @@ import 'package:expense_tracker/features/budget/models/spending_summary_model.da
 import 'package:expense_tracker/features/dashboard/providers/spending_summary_provider.dart';
 import 'package:expense_tracker/features/dashboard/models/daily_chart_model.dart';
 import 'package:expense_tracker/features/dashboard/providers/daily_chart_provider.dart';
+import 'dart:math' as math;
 
 /// Interactive spending summary chart featuring 3 view modes:
 /// 1. Daily — Filter by Year, Month, & Week (Mon–Sun daily breakdown)
@@ -340,9 +341,26 @@ class _DailyChartWidget extends StatelessWidget {
     final totalReal = days.fold<int>(0, (sum, d) => sum + d.realSpent);
 
     final maxY = days.fold<double>(
-      budget.toDouble() * 0.4,
-      (prev, e) => e.realSpent.toDouble() > prev ? e.realSpent.toDouble() * 1.25 : prev,
+      budget.toDouble() > 0 ? budget.toDouble() * 1.15 : 100.0,
+      (prev, e) => e.realSpent.toDouble() > prev ? e.realSpent.toDouble() * 1.15 : prev,
     );
+
+    double calculateNiceInterval(double maxVal) {
+      if (maxVal <= 0) return 1.0;
+      final targetInterval = maxVal / 4;
+      final magnitude = math.pow(10, (math.log(targetInterval) / math.ln10).floor()).toDouble();
+      final fraction = targetInterval / magnitude;
+      
+      double niceFraction;
+      if (fraction <= 1.0) niceFraction = 1.0;
+      else if (fraction <= 2.5) niceFraction = 2.5;
+      else if (fraction <= 5.0) niceFraction = 5.0;
+      else niceFraction = 10.0;
+      
+      return niceFraction * magnitude;
+    }
+
+    final interval = calculateNiceInterval(maxY);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,7 +442,7 @@ class _DailyChartWidget extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: budget > 0 ? budget / 2 : maxY / 2,
+                  horizontalInterval: interval,
                   getDrawingHorizontalLine: (_) => const FlLine(
                     color: AppColors.border,
                     strokeWidth: 0.5,
@@ -436,7 +454,7 @@ class _DailyChartWidget extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 48,
-                      interval: budget > 0 ? budget / 2 : maxY / 2,
+                      interval: interval,
                       getTitlesWidget: (val, _) => Text(
                         CurrencyFormatter.compact(val.toInt()),
                         style: const TextStyle(
@@ -556,9 +574,26 @@ class _SummaryBarChart extends StatelessWidget {
     }
 
     final maxY = entries.fold<double>(
-      budget.toDouble() * 1.15,
-      (prev, e) => e.realSpent.toDouble() > prev ? e.realSpent.toDouble() * 1.1 : prev,
+      budget.toDouble() > 0 ? budget.toDouble() * 1.15 : 100.0,
+      (prev, e) => e.realSpent.toDouble() > prev ? e.realSpent.toDouble() * 1.15 : prev,
     );
+
+    double calculateNiceInterval(double maxVal) {
+      if (maxVal <= 0) return 1.0;
+      final targetInterval = maxVal / 4;
+      final magnitude = math.pow(10, (math.log(targetInterval) / math.ln10).floor()).toDouble();
+      final fraction = targetInterval / magnitude;
+      
+      double niceFraction;
+      if (fraction <= 1.0) niceFraction = 1.0;
+      else if (fraction <= 2.5) niceFraction = 2.5;
+      else if (fraction <= 5.0) niceFraction = 5.0;
+      else niceFraction = 10.0;
+      
+      return niceFraction * magnitude;
+    }
+
+    final interval = calculateNiceInterval(maxY);
 
     final barGroups = entries.map((e) {
       final isOver = e.realSpent > budget;
@@ -615,7 +650,7 @@ class _SummaryBarChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 48,
-                interval: budget > 0 ? budget / 2 : maxY / 2,
+                interval: interval,
                 getTitlesWidget: (val, _) => Text(
                   CurrencyFormatter.compact(val.toInt()),
                   style: const TextStyle(
@@ -653,7 +688,7 @@ class _SummaryBarChart extends StatelessWidget {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
-            horizontalInterval: budget > 0 ? budget / 2 : maxY / 2,
+            horizontalInterval: interval,
             getDrawingHorizontalLine: (_) => const FlLine(
               color: AppColors.border,
               strokeWidth: 0.5,

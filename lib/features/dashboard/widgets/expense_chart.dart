@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/core/utils/currency_formatter.dart';
 import 'package:expense_tracker/core/utils/date_formatter.dart';
+import 'dart:math' as math;
 import 'package:expense_tracker/features/budget/models/budget_model.dart';
 
 /// Expense chart showing cumulative daily spending vs budget baseline.
@@ -93,11 +94,18 @@ class _ExpenseChartState extends State<ExpenseChart>
     int realCumulative = 0;
     int totalCumulative = 0;
 
+    final now = DateTime.now();
+    final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
     for (int i = 0; i < days.length; i++) {
       realCumulative += days[i].realSpent;
       totalCumulative += days[i].totalSpent;
       realPoints.add(FlSpot(i.toDouble(), realCumulative.toDouble()));
       totalPoints.add(FlSpot(i.toDouble(), totalCumulative.toDouble()));
+      
+      if (days[i].date.compareTo(todayStr) >= 0) {
+        break;
+      }
     }
 
     if (realPoints.isEmpty) {
@@ -113,16 +121,11 @@ class _ExpenseChartState extends State<ExpenseChart>
         ? totalCumulative.toDouble()
         : realCumulative.toDouble();
 
-    // Smart maxY: scale to actual spending so the line always looks visually
-    // meaningful. When spending is low relative to budget, use spending * 2.5
-    // so the line fills roughly 40% of the chart height. When spending is
-    // near or over budget, scale to budget with headroom.
+    // Use actual limit for max Y
     final double maxY = () {
-      if (effectiveMax <= 0) return budget.toDouble() * 0.5.clamp(1.0, double.infinity);
-      if (effectiveMax >= budget) return effectiveMax * 1.15; // over/at budget
-      // Under budget: use the larger of spending*2.5 or budget*1.15,
-      // but never less than spending*2.0 so the line is always visible.
-      return (effectiveMax * 2.5).clamp(effectiveMax * 2.0, budget.toDouble() * 1.15);
+      final maxVal = effectiveMax > budget ? effectiveMax : budget.toDouble();
+      if (maxVal <= 0) return 100.0;
+      return maxVal * 1.15; // 15% headroom
     }()
         .clamp(1.0, double.infinity);
 
@@ -305,11 +308,23 @@ class _ExpenseChartState extends State<ExpenseChart>
               builder: (context, _) {
                 final totalOpacity = _totalLineAnimation.value;
 
-                // Base grid/axis intervals on maxY (spending-relative) so they
-                // are always within the visible chart area. Budget-based
-                // intervals would be off-screen when spending << budget.
-                final gridInterval = maxY / 4;
-                final leftInterval = maxY / 2;
+                double calculateNiceInterval(double maxVal) {
+                  if (maxVal <= 0) return 1.0;
+                  final targetInterval = maxVal / 4;
+                  final magnitude = math.pow(10, (math.log(targetInterval) / math.ln10).floor()).toDouble();
+                  final fraction = targetInterval / magnitude;
+                  
+                  double niceFraction;
+                  if (fraction <= 1.0) niceFraction = 1.0;
+                  else if (fraction <= 2.5) niceFraction = 2.5;
+                  else if (fraction <= 5.0) niceFraction = 5.0;
+                  else niceFraction = 10.0;
+                  
+                  return niceFraction * magnitude;
+                }
+
+                final leftInterval = calculateNiceInterval(maxY);
+                final gridInterval = leftInterval;
 
                 return SizedBox(
                   height: 180,
@@ -380,12 +395,9 @@ class _ExpenseChartState extends State<ExpenseChart>
                       ),
                       extraLinesData: ExtraLinesData(
                         horizontalLines: [
-                          // Pin the limit line at 88% of the visible chart
-                          // height so it's always on-screen — even when
-                          // spending is far below the actual budget. The label
-                          // still shows the real budget value so it's accurate.
+                          // Real limit line
                           HorizontalLine(
-                            y: maxY * 0.88,
+                            y: budget.toDouble(),
                             color: AppColors.error.withValues(alpha: 0.75),
                             strokeWidth: 1.5,
                             dashArray: [6, 4],
