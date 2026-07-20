@@ -6,6 +6,7 @@ import 'package:expense_tracker/core/utils/currency_formatter.dart';
 import 'package:expense_tracker/core/utils/date_formatter.dart';
 import 'package:expense_tracker/features/budget/providers/budget_provider.dart';
 import 'package:expense_tracker/features/budget/models/budget_model.dart';
+import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
 
 class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
@@ -51,8 +52,20 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> with AutomaticKeepA
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
             sliver: budgetAsync.when(
-              loading: () => const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              loading: () => SliverList(
+                delegate: SliverChildListDelegate([
+                  const _SectionHeader(title: 'This Week', subtitle: 'Loading...'),
+                  const SizedBox(height: 12),
+                  const SkeletonBudgetRingCard(),
+                  const SizedBox(height: 20),
+                  const _SectionHeader(title: 'This Month', subtitle: 'Loading...'),
+                  const SizedBox(height: 12),
+                  const SkeletonBudgetRingCard(),
+                  const SizedBox(height: 20),
+                  const SkeletonBox(height: 180, borderRadius: 16),
+                  const SizedBox(height: 20),
+                  const SkeletonStatGrid(),
+                ]),
               ),
               error: (e, _) => SliverFillRemaining(
                 child: Center(

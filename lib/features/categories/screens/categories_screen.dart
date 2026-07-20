@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/features/categories/providers/category_provider.dart';
 import 'package:expense_tracker/features/categories/models/category_model.dart';
 import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
+import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
 
 class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
@@ -42,10 +42,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Automa
                 Text('My Categories', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
                 categoriesAsync.when(
-                  loading: () => const Center(child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )),
+                  loading: () => Column(
+                    children: List.generate(4, (_) => const SkeletonCategoryTile()),
+                  ),
                   error: (e, _) => AppErrorWidget(
                     error: e,
                     onRetry: () => ref.invalidate(categoriesProvider),
@@ -74,10 +73,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with Automa
                 ),
                 const SizedBox(height: 12),
                 rulesAsync.when(
-                  loading: () => const Center(child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  )),
+                  loading: () => Column(
+                    children: List.generate(3, (_) => const SkeletonTransactionTile()),
+                  ),
                   error: (e, _) => AppErrorWidget(
                     error: e,
                     onRetry: () => ref.invalidate(merchantRulesProvider),

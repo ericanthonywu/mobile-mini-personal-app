@@ -6,6 +6,7 @@ import 'package:expense_tracker/core/utils/currency_formatter.dart';
 import 'package:expense_tracker/features/transactions/providers/transaction_provider.dart';
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
 import 'package:expense_tracker/features/categories/providers/category_provider.dart';
+import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
 import 'package:expense_tracker/shared/widgets/transaction_card.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
@@ -764,13 +765,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
         padding: const EdgeInsets.all(16),
         itemCount: 8,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, __) => Container(
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+        itemBuilder: (_, __) => const SkeletonTransactionTile(),
       );
     }
 

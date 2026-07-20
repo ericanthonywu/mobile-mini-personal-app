@@ -16,6 +16,7 @@ import 'package:expense_tracker/features/dashboard/providers/daily_summary_provi
 import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
 import 'package:expense_tracker/features/dashboard/providers/alert_provider.dart';
 import 'package:expense_tracker/features/dashboard/widgets/alert_banner.dart';
+import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -149,7 +150,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
                   // Cumulative expense line chart
                   chartAsync.when(
-                    loading: () => _SkeletonBox(height: 280, borderRadius: 16),
+                    loading: () => const SkeletonBox(height: 280, borderRadius: 16),
                     error: (_, __) => const SizedBox.shrink(),
                     data: (chart) => ExpenseChart(chart: chart),
                   ),
@@ -200,7 +201,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   // Recent transactions list
                   recentAsync.when(
                     loading: () => Column(
-                      children: List.generate(3, (_) => const _TransactionSkeleton()),
+                      children: List.generate(3, (_) => const SkeletonTransactionTile()),
                     ),
                     error: (e, _) => AppErrorWidget(
                       error: e,
@@ -321,11 +322,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
   }
 
   Widget _buildBudgetSkeleton() {
-    return Column(
+    return const Column(
       children: [
-        _SkeletonBox(height: 128, borderRadius: 16),
-        const SizedBox(height: 12),
-        _SkeletonBox(height: 128, borderRadius: 16),
+        SkeletonBox(height: 128, borderRadius: 16),
+        SizedBox(height: 12),
+        SkeletonBox(height: 128, borderRadius: 16),
       ],
     );
   }
@@ -689,36 +690,4 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _SkeletonBox extends StatelessWidget {
-  final double height;
-  final double borderRadius;
 
-  const _SkeletonBox({required this.height, this.borderRadius = 8});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(borderRadius),
-      ),
-    );
-  }
-}
-
-class _TransactionSkeleton extends StatelessWidget {
-  const _TransactionSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 72,
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-      ),
-    );
-  }
-}
