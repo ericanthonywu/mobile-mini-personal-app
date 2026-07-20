@@ -7,8 +7,8 @@ class BudgetSummaryModel {
 
   factory BudgetSummaryModel.fromJson(Map<String, dynamic> json) {
     return BudgetSummaryModel(
-      week: BudgetPeriod.fromJson(json['week'] as Map<String, dynamic>),
-      month: BudgetPeriod.fromJson(json['month'] as Map<String, dynamic>),
+      week: BudgetPeriod.fromJson((json['week'] as Map<String, dynamic>?) ?? {}),
+      month: BudgetPeriod.fromJson((json['month'] as Map<String, dynamic>?) ?? {}),
     );
   }
 }
@@ -41,15 +41,22 @@ class BudgetPeriod {
   int get ignoredAmount => totalSpent - realSpent;
 
   factory BudgetPeriod.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic val) {
+      if (val is String) {
+        return DateTime.tryParse(val) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
     return BudgetPeriod(
-      start: DateTime.parse(json['start'] as String),
-      end: DateTime.parse(json['end'] as String),
-      budget: json['budget'] as int,
-      realSpent: json['realSpent'] as int,
-      totalSpent: json['totalSpent'] as int,
-      remaining: json['remaining'] as int,
-      percentUsed: json['percentUsed'] as int,
-      isOverBudget: json['isOverBudget'] as bool,
+      start: parseDate(json['start']),
+      end: parseDate(json['end']),
+      budget: (json['budget'] as num?)?.toInt() ?? 0,
+      realSpent: (json['realSpent'] as num?)?.toInt() ?? 0,
+      totalSpent: (json['totalSpent'] as num?)?.toInt() ?? 0,
+      remaining: (json['remaining'] as num?)?.toInt() ?? 0,
+      percentUsed: (json['percentUsed'] as num?)?.toInt() ?? 0,
+      isOverBudget: json['isOverBudget'] as bool? ?? false,
     );
   }
 }
@@ -68,9 +75,9 @@ class DailySpending {
 
   factory DailySpending.fromJson(Map<String, dynamic> json) {
     return DailySpending(
-      date: json['date'] as String,
-      realSpent: (json['realSpent'] as num).toInt(),
-      totalSpent: (json['totalSpent'] as num).toInt(),
+      date: json['date'] as String? ?? '',
+      realSpent: (json['realSpent'] as num?)?.toInt() ?? 0,
+      totalSpent: (json['totalSpent'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -83,11 +90,15 @@ class ChartPeriod {
   const ChartPeriod({required this.days, required this.budget});
 
   factory ChartPeriod.fromJson(Map<String, dynamic> json) {
+    final rawDays = json['days'] as List?;
     return ChartPeriod(
-      days: (json['days'] as List)
-          .map((e) => DailySpending.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      budget: (json['budget'] as num).toInt(),
+      days: rawDays != null
+          ? rawDays
+              .whereType<Map<String, dynamic>>()
+              .map((e) => DailySpending.fromJson(e))
+              .toList()
+          : const [],
+      budget: (json['budget'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -101,9 +112,8 @@ class BudgetChartModel {
 
   factory BudgetChartModel.fromJson(Map<String, dynamic> json) {
     return BudgetChartModel(
-      weekly: ChartPeriod.fromJson(json['weekly'] as Map<String, dynamic>),
-      monthly: ChartPeriod.fromJson(json['monthly'] as Map<String, dynamic>),
+      weekly: ChartPeriod.fromJson((json['weekly'] as Map<String, dynamic>?) ?? {}),
+      monthly: ChartPeriod.fromJson((json['monthly'] as Map<String, dynamic>?) ?? {}),
     );
   }
 }
-

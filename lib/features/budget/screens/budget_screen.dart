@@ -7,16 +7,32 @@ import 'package:expense_tracker/core/utils/date_formatter.dart';
 import 'package:expense_tracker/features/budget/providers/budget_provider.dart';
 import 'package:expense_tracker/features/budget/models/budget_model.dart';
 
-class BudgetScreen extends ConsumerWidget {
+class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BudgetScreen> createState() => _BudgetScreenState();
+}
+
+class _BudgetScreenState extends ConsumerState<BudgetScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
     final budgetAsync = ref.watch(budgetProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        onRefresh: () async {
+          ref.invalidate(budgetProvider);
+          await Future.delayed(const Duration(milliseconds: 400));
+        },
+        child: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
@@ -27,7 +43,8 @@ class BudgetScreen extends ConsumerWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
-                onPressed: () => ref.refresh(budgetProvider),
+                onPressed: () => ref.invalidate(budgetProvider),
+                tooltip: 'Refresh',
               ),
             ],
           ),
@@ -81,7 +98,8 @@ class BudgetScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
+        ),  // CustomScrollView
+      ),    // RefreshIndicator
     );
   }
 }

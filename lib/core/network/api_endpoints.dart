@@ -25,7 +25,9 @@ class ApiEndpoints {
   // Budget
   static const String budget = '/budget';
   static const String budgetChart = '/budget/chart';
+  static const String budgetDailyChart = '/budget/daily-chart';
   static const String budgetSpendingSummary = '/budget/spending-summary';
+  static const String budgetDailySummary = '/budget/daily-summary';
 
   // Alerts
   static const String alerts = '/alerts';

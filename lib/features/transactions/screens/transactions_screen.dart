@@ -15,8 +15,11 @@ class TransactionsScreen extends ConsumerStatefulWidget {
   ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
-class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
+class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with AutomaticKeepAliveClientMixin {
   final _searchController = TextEditingController();
+
+  @override
+  bool get wantKeepAlive => true;
   bool? _isIgnoredFilter;
   String? _categoryFilter;
 
@@ -594,6 +597,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final state = ref.watch(transactionProvider);
     final categories = ref.watch(categoriesProvider).valueOrNull ?? [];
 

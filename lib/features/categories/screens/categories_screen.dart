@@ -4,12 +4,22 @@ import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/features/categories/providers/category_provider.dart';
 import 'package:expense_tracker/features/categories/models/category_model.dart';
+import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
 
-class CategoriesScreen extends ConsumerWidget {
+class CategoriesScreen extends ConsumerStatefulWidget {
   const CategoriesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends ConsumerState<CategoriesScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
     final categoriesAsync = ref.watch(categoriesProvider);
     final rulesAsync = ref.watch(merchantRulesProvider);
 
@@ -32,8 +42,14 @@ class CategoriesScreen extends ConsumerWidget {
                 Text('My Categories', style: Theme.of(context).textTheme.titleLarge),
                 const SizedBox(height: 12),
                 categoriesAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                  error: (e, _) => Text(e.toString(), style: const TextStyle(color: AppColors.error)),
+                  loading: () => const Center(child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )),
+                  error: (e, _) => AppErrorWidget(
+                    error: e,
+                    onRetry: () => ref.invalidate(categoriesProvider),
+                  ),
                   data: (categories) => Column(
                     children: categories.map((cat) => _CategoryTile(category: cat)).toList(),
                   ),
@@ -58,8 +74,14 @@ class CategoriesScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 rulesAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                  error: (e, _) => Text(e.toString(), style: const TextStyle(color: AppColors.error)),
+                  loading: () => const Center(child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )),
+                  error: (e, _) => AppErrorWidget(
+                    error: e,
+                    onRetry: () => ref.invalidate(merchantRulesProvider),
+                  ),
                   data: (rules) => rules.isEmpty
                       ? Container(
                           padding: const EdgeInsets.all(16),

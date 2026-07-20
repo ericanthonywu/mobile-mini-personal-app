@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/core/utils/currency_formatter.dart';
+import 'package:expense_tracker/core/utils/date_formatter.dart';
 import 'package:expense_tracker/features/budget/models/spending_summary_model.dart';
 import 'package:expense_tracker/features/dashboard/providers/spending_summary_provider.dart';
+import 'package:expense_tracker/features/dashboard/models/daily_chart_model.dart';
+import 'package:expense_tracker/features/dashboard/providers/daily_chart_provider.dart';
 
-/// Bar chart showing per-week or per-month spending vs budget.
-/// - Weekly mode: filterable by year + month
-/// - Monthly mode: filterable by year only
+/// Interactive spending summary chart featuring 3 view modes:
+/// 1. Daily — Filter by Year, Month, & Week (Mon–Sun daily breakdown)
+/// 2. Weekly — Filter by Year & Month (Week 1, 2, 3, 4 breakdown)
+/// 3. Monthly — Filter by Year (Jan–Dec breakdown)
 class SpendingSummaryChart extends ConsumerStatefulWidget {
   const SpendingSummaryChart({super.key});
 
@@ -19,13 +24,20 @@ class SpendingSummaryChart extends ConsumerStatefulWidget {
 
 class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
     with SingleTickerProviderStateMixin {
-  bool _isWeekly = true;
+  /// View mode: 'daily', 'weekly', 'monthly'
+  String _mode = 'daily';
 
   late int _selectedYear;
   late int _selectedMonth;
+  int? _selectedWeek; // null = defaults to first/current week
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
+
+  static const List<String> _monthShortNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
 
   @override
   void initState() {
@@ -49,24 +61,48 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
     super.dispose();
   }
 
-  void _switchMode(bool weekly) {
-    if (_isWeekly == weekly) return;
-    setState(() => _isWeekly = weekly);
+  void _switchMode(String mode) {
+    if (_mode == mode) return;
+    HapticFeedback.selectionClick();
+    setState(() => _mode = mode);
     _fadeController
       ..reset()
       ..forward();
   }
 
-  SpendingSummaryParams get _params => SpendingSummaryParams(
-        mode: _isWeekly ? 'week' : 'month',
-        year: _selectedYear,
-        month: _isWeekly ? _selectedMonth : null,
-      );
+  void _changeMonth(int delta) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      int newMonth = _selectedMonth + delta;
+      if (newMonth < 1) {
+        _selectedMonth = 12;
+        _selectedYear--;
+      } else if (newMonth > 12) {
+        _selectedMonth = 1;
+        _selectedYear++;
+      } else {
+        _selectedMonth = newMonth;
+      }
+      _selectedWeek = null; // reset week when month changes
+    });
+    _fadeController
+      ..reset()
+      ..forward();
+  }
+
+  void _changeYear(int delta) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedYear += delta;
+      _selectedWeek = null;
+    });
+    _fadeController
+      ..reset()
+      ..forward();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(spendingSummaryProvider(_params));
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -77,15 +113,17 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────
+          // ── Header row ──────────────────────────────────────────────────
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Spending Summary',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
-              // Mode toggle
+              // Mode toggle (Daily | Weekly | Monthly)
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant,
@@ -95,145 +133,418 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _ModeTab(
+                      label: 'Daily',
+                      selected: _mode == 'daily',
+                      onTap: () => _switchMode('daily'),
+                    ),
+                    _ModeTab(
                       label: 'Weekly',
-                      selected: _isWeekly,
-                      onTap: () => _switchMode(true),
+                      selected: _mode == 'weekly',
+                      onTap: () => _switchMode('weekly'),
                     ),
                     _ModeTab(
                       label: 'Monthly',
-                      selected: !_isWeekly,
-                      onTap: () => _switchMode(false),
+                      selected: _mode == 'monthly',
+                      onTap: () => _switchMode('monthly'),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // ── Filter row ──────────────────────────────────────────────────
-          Row(
-            children: [
-              if (_isWeekly) ...[
-                _FilterChip(
-                  label: _monthName(_selectedMonth),
-                  onTap: () => _pickMonth(context),
-                ),
-                const SizedBox(width: 8),
-              ],
-              _FilterChip(
-                label: _selectedYear.toString(),
-                onTap: () => _pickYear(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // ── Chart area ──────────────────────────────────────────────────
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: async.when(
-              loading: () => _SkeletonBar(),
-              error: (_, __) => const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'Failed to load data',
-                    style: TextStyle(color: AppColors.textSecondary),
+          // ── Filter Controls ──────────────────────────────────────────────
+          if (_mode == 'daily' || _mode == 'weekly') ...[
+            Row(
+              children: [
+                // Month & Year navigator
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _changeMonth(-1),
+                      ),
+                      Text(
+                        '${_monthShortNames[_selectedMonth - 1]} $_selectedYear',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _changeMonth(1),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              data: (summary) => _BarChartContent(
-                summary: summary,
-                isWeekly: _isWeekly,
-              ),
+              ],
             ),
+            const SizedBox(height: 14),
+          ] else ...[
+            // Year navigator for Monthly mode
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _changeYear(-1),
+                      ),
+                      Text(
+                        '$_selectedYear',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _changeYear(1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // ── Chart Content ────────────────────────────────────────────────
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: _mode == 'daily'
+                ? _buildDailyChartContent()
+                : _buildSummaryChartContent(),
           ),
         ],
       ),
     );
   }
 
-  // ── Pickers ────────────────────────────────────────────────────────────────
+  // ── Daily Mode (Filtered by Week) ─────────────────────────────────────────
+  Widget _buildDailyChartContent() {
+    final params = DailyChartParams(
+      year: _selectedYear,
+      month: _selectedMonth,
+      week: _selectedWeek,
+    );
+    final async = ref.watch(dailyChartProvider(params));
 
-  Future<void> _pickMonth(BuildContext context) async {
-    final months = List.generate(12, (i) => i + 1);
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    return async.when(
+      loading: () => const SizedBox(
+        height: 220,
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
       ),
-      builder: (_) => _PickerSheet(
-        title: 'Select Month',
-        items: months.map((m) => _monthName(m)).toList(),
-        selectedIndex: _selectedMonth - 1,
-        onSelect: (i) {
-          setState(() => _selectedMonth = i + 1);
-          _fadeController
-            ..reset()
-            ..forward();
+      error: (e, _) => SizedBox(
+        height: 220,
+        child: Center(
+          child: Text(
+            'Failed to load daily spending',
+            style: TextStyle(color: AppColors.error, fontSize: 12),
+          ),
+        ),
+      ),
+      data: (data) => _DailyChartWidget(
+        data: data,
+        selectedWeek: _selectedWeek,
+        onWeekSelected: (week) {
+          HapticFeedback.selectionClick();
+          setState(() => _selectedWeek = week);
         },
       ),
     );
   }
 
-  Future<void> _pickYear(BuildContext context) async {
-    final currentYear = DateTime.now().year;
-    final years = List.generate(5, (i) => currentYear - i);
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _PickerSheet(
-        title: 'Select Year',
-        items: years.map((y) => y.toString()).toList(),
-        selectedIndex: years.indexOf(_selectedYear),
-        onSelect: (i) {
-          setState(() => _selectedYear = years[i]);
-          _fadeController
-            ..reset()
-            ..forward();
-        },
-      ),
+  // ── Weekly / Monthly Modes ──────────────────────────────────────────────
+  Widget _buildSummaryChartContent() {
+    final params = SpendingSummaryParams(
+      mode: _mode == 'weekly' ? 'week' : 'month',
+      year: _selectedYear,
+      month: _mode == 'weekly' ? _selectedMonth : null,
     );
-  }
+    final async = ref.watch(spendingSummaryProvider(params));
 
-  String _monthName(int m) {
-    const names = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ];
-    return m >= 1 && m <= 12 ? names[m] : '';
+    return async.when(
+      loading: () => const SizedBox(
+        height: 220,
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      ),
+      error: (e, _) => SizedBox(
+        height: 220,
+        child: Center(
+          child: Text(
+            'Failed to load summary',
+            style: TextStyle(color: AppColors.error, fontSize: 12),
+          ),
+        ),
+      ),
+      data: (summary) => _SummaryBarChart(summary: summary),
+    );
   }
 }
 
-// ── Bar chart content ─────────────────────────────────────────────────────────
+// ── Daily Chart View (Filtered by Week) ─────────────────────────────────────
+class _DailyChartWidget extends StatelessWidget {
+  final DailyChartModel data;
+  final int? selectedWeek;
+  final ValueChanged<int> onWeekSelected;
 
-class _BarChartContent extends StatelessWidget {
+  const _DailyChartWidget({
+    required this.data,
+    required this.selectedWeek,
+    required this.onWeekSelected,
+  });
+
+  String _formatWeekLabel(DailyChartWeekInfo info) {
+    if (info.startDate.isEmpty || info.endDate.isEmpty) return 'Week ${info.week}';
+    final s = DateTime.tryParse(info.startDate);
+    final e = DateTime.tryParse(info.endDate);
+    if (s != null && e != null) {
+      return 'W${info.week} (${DateFormatter.short(s)} - ${DateFormatter.short(e)})';
+    }
+    return 'Week ${info.week}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final days = data.days;
+    final budget = data.budget;
+
+    // Check if all days zero
+    final totalReal = days.fold<int>(0, (sum, d) => sum + d.realSpent);
+
+    final maxY = days.fold<double>(
+      budget.toDouble() * 0.4,
+      (prev, e) => e.realSpent.toDouble() > prev ? e.realSpent.toDouble() * 1.25 : prev,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Week selector pills ──────────────────────────────────────────
+        if (data.availableWeeks.isNotEmpty) ...[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: data.availableWeeks.map((w) {
+                final isSelected = (selectedWeek ?? data.week) == w.week;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(
+                      _formatWeekLabel(w),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? Colors.white : AppColors.textSecondary,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: AppColors.surfaceVariant,
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primary
+                          : AppColors.border.withValues(alpha: 0.5),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    onSelected: (_) => onWeekSelected(w.week),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // ── Week Date Subtitle & Spending Total ──────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Week ${data.week} Spending',
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              CurrencyFormatter.format(totalReal),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // ── Daily Bar Chart (Mon - Sun) ──────────────────────────────────
+        if (days.isEmpty)
+          const SizedBox(
+            height: 160,
+            child: Center(child: Text('No daily data for this week')),
+          )
+        else
+          SizedBox(
+            height: 180,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxY,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: budget > 0 ? budget / 2 : maxY / 2,
+                  getDrawingHorizontalLine: (_) => const FlLine(
+                    color: AppColors.border,
+                    strokeWidth: 0.5,
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 48,
+                      interval: budget > 0 ? budget / 2 : maxY / 2,
+                      getTitlesWidget: (val, _) => Text(
+                        CurrencyFormatter.compact(val.toInt()),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: AppColors.textDisabled,
+                        ),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 24,
+                      getTitlesWidget: (val, _) {
+                        final idx = val.toInt();
+                        if (idx < 0 || idx >= days.length) return const SizedBox.shrink();
+                        final d = DateTime.tryParse(days[idx].date);
+                        final label = d != null ? DateFormatter.dayName(d) : 'Day';
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                barGroups: days.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final day = entry.value;
+                  final color = AppColors.primary;
+
+                  return BarChartGroupData(
+                    x: idx,
+                    barRods: [
+                      BarChartRodData(
+                        toY: day.realSpent.toDouble(),
+                        color: color,
+                        width: 22,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: maxY,
+                          color: AppColors.surfaceVariant,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (_) => AppColors.surfaceHighlight,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      final day = days[groupIndex];
+                      final dt = DateTime.tryParse(day.date);
+                      final dayStr = dt != null ? DateFormatter.short(dt) : day.date;
+                      return BarTooltipItem(
+                        '$dayStr\n${CurrencyFormatter.format(day.realSpent)}',
+                        const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Summary Bar Chart (Weekly / Monthly) ───────────────────────────────────
+class _SummaryBarChart extends StatelessWidget {
   final SpendingSummaryModel summary;
-  final bool isWeekly;
 
-  const _BarChartContent({required this.summary, required this.isWeekly});
+  const _SummaryBarChart({required this.summary});
 
   @override
   Widget build(BuildContext context) {
     final entries = summary.entries;
+    final isWeekly = summary.mode == 'week';
     final budget = summary.budget;
 
-    if (entries.isEmpty || entries.every((e) => e.realSpent == 0)) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 32),
+    final hasData = entries.any((e) => e.realSpent > 0);
+
+    if (!hasData) {
+      return SizedBox(
+        height: 180,
+        child: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.bar_chart_rounded,
-                  size: 40, color: AppColors.textDisabled),
+              const Icon(Icons.bar_chart_rounded, size: 36, color: AppColors.textDisabled),
               const SizedBox(height: 8),
               Text(
-                'No spending recorded',
+                'No spending recorded for this period',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -252,7 +563,7 @@ class _BarChartContent extends StatelessWidget {
     final barGroups = entries.map((e) {
       final isOver = e.realSpent > budget;
       final color = isOver ? AppColors.error : AppColors.primary;
-      final idx = e.index - 1; // 0-indexed for the chart
+      final idx = e.index - 1;
 
       return BarChartGroupData(
         x: idx,
@@ -272,164 +583,110 @@ class _BarChartContent extends StatelessWidget {
       );
     }).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Legend
-        Row(
-          children: [
-            _Dot(color: AppColors.primary),
-            const SizedBox(width: 4),
-            Text('Under budget',
-                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-            const SizedBox(width: 12),
-            _Dot(color: AppColors.error),
-            const SizedBox(width: 4),
-            Text('Over budget',
-                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-          ],
-        ),
-        const SizedBox(height: 12),
+    return SizedBox(
+      height: 180,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: maxY,
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => AppColors.surfaceHighlight,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                final entry = entries[groupIndex];
+                final isOver = entry.realSpent > budget;
+                final label = isWeekly
+                    ? 'Week ${entry.index}'
+                    : _monthName(entry.index);
 
-        SizedBox(
-          height: 180,
-          child: BarChart(
-            BarChartData(
-              maxY: maxY,
-              barTouchData: BarTouchData(
-                enabled: true,
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (_) => AppColors.surfaceHighlight,
-                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    final e = entries[group.x];
-                    String label;
-                    if (isWeekly) {
-                      // Show date range if available (cross-month weeks make this essential)
-                      if (e.startDate != null && e.endDate != null) {
-                        final start = DateTime.parse(e.startDate!);
-                        final end = DateTime.parse(e.endDate!);
-                        label = 'W${e.index}: ${_formatShortDate(start)} – ${_formatShortDate(end)}';
-                      } else {
-                        label = 'Week ${e.index}';
-                      }
-                    } else {
-                      label = _shortMonth(e.index);
-                    }
-                    return BarTooltipItem(
-                      '$label\n${CurrencyFormatter.compact(e.realSpent)}',
-                      const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              titlesData: FlTitlesData(
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 48,
-                    interval: budget / 2,
-                    getTitlesWidget: (val, _) => Text(
-                      CurrencyFormatter.compact(val.toInt()),
-                      style: const TextStyle(
-                          fontSize: 9, color: AppColors.textDisabled),
-                    ),
+                return BarTooltipItem(
+                  '$label\n${CurrencyFormatter.compact(entry.realSpent)}',
+                  TextStyle(
+                    color: isOver ? AppColors.error : AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 24,
-                    getTitlesWidget: (val, _) {
-                      final idx = val.toInt();
-                      if (idx < 0 || idx >= entries.length) {
-                        return const SizedBox.shrink();
-                      }
-                      final e = entries[idx];
-                      final label = isWeekly
-                          ? 'W${e.index}'
-                          : _shortMonth(e.index);
-                      return Text(
-                        label,
-                        style: const TextStyle(
-                            fontSize: 9, color: AppColors.textDisabled),
-                      );
-                    },
-                  ),
-                ),
-                topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false)),
-              ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: budget / 2,
-                getDrawingHorizontalLine: (_) => const FlLine(
-                  color: AppColors.border,
-                  strokeWidth: 0.5,
-                ),
-              ),
-              borderData: FlBorderData(show: false),
-              extraLinesData: ExtraLinesData(
-                horizontalLines: [
-                  HorizontalLine(
-                    y: budget.toDouble(),
-                    color: AppColors.error.withValues(alpha: 0.75),
-                    strokeWidth: 1.5,
-                    dashArray: [6, 4],
-                    label: HorizontalLineLabel(
-                      show: true,
-                      alignment: Alignment.topRight,
-                      padding: const EdgeInsets.only(right: 4, bottom: 2),
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: AppColors.error,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      labelResolver: (_) => CurrencyFormatter.compact(budget),
-                    ),
-                  ),
-                ],
-              ),
-              barGroups: barGroups,
-              alignment: BarChartAlignment.spaceAround,
+                );
+              },
             ),
           ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                interval: budget > 0 ? budget / 2 : maxY / 2,
+                getTitlesWidget: (val, _) => Text(
+                  CurrencyFormatter.compact(val.toInt()),
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: AppColors.textDisabled,
+                  ),
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 24,
+                getTitlesWidget: (val, _) {
+                  final idx = val.toInt();
+                  if (idx < 0 || idx >= entries.length) {
+                    return const SizedBox.shrink();
+                  }
+                  final label = isWeekly
+                      ? 'W${entries[idx].index}'
+                      : _monthAbbr(entries[idx].index);
+                  return Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: AppColors.textDisabled,
+                    ),
+                  );
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: budget > 0 ? budget / 2 : maxY / 2,
+            getDrawingHorizontalLine: (_) => const FlLine(
+              color: AppColors.border,
+              strokeWidth: 0.5,
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: barGroups,
         ),
-      ],
+      ),
     );
   }
 
-  String _shortMonth(int m) {
-    const names = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
+  static String _monthName(int m) {
+    const names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return m >= 1 && m <= 12 ? names[m] : '';
   }
 
-  String _formatShortDate(DateTime d) {
-    const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${d.day} ${months[d.month]}';
+  static String _monthAbbr(int m) {
+    const abbrs = ['', 'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+    return m >= 1 && m <= 12 ? abbrs[m] : '';
   }
 }
-
-// ── Small helpers ─────────────────────────────────────────────────────────────
 
 class _ModeTab extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _ModeTab({required this.label, required this.selected, required this.onTap});
+  const _ModeTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -437,7 +694,7 @@ class _ModeTab extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected ? AppColors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
@@ -445,146 +702,10 @@ class _ModeTab extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: selected ? Colors.white : AppColors.textSecondary,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-
-  const _FilterChip({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down_rounded,
-                size: 14, color: AppColors.textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  final Color color;
-  const _Dot({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 8,
-      height: 8,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
-class _SkeletonBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(8),
-      ),
-    );
-  }
-}
-
-// ── Picker bottom sheet ────────────────────────────────────────────────────────
-
-class _PickerSheet extends StatelessWidget {
-  final String title;
-  final List<String> items;
-  final int selectedIndex;
-  final void Function(int) onSelect;
-
-  const _PickerSheet({
-    required this.title,
-    required this.items,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(title,
-                      style: Theme.of(context).textTheme.titleMedium),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: AppColors.textSecondary),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(color: AppColors.border, height: 1),
-            const SizedBox(height: 8),
-            ...List.generate(items.length, (i) {
-              final selected = i == selectedIndex;
-              return ListTile(
-                dense: true,
-                title: Text(
-                  items[i],
-                  style: TextStyle(
-                    color: selected
-                        ? AppColors.primary
-                        : AppColors.textPrimary,
-                    fontWeight:
-                        selected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-                trailing: selected
-                    ? const Icon(Icons.check_rounded,
-                        color: AppColors.primary, size: 18)
-                    : null,
-                onTap: () {
-                  Navigator.pop(context);
-                  onSelect(i);
-                },
-              );
-            }),
-          ],
         ),
       ),
     );

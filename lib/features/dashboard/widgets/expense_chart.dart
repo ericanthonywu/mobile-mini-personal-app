@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/core/utils/currency_formatter.dart';
+import 'package:expense_tracker/core/utils/date_formatter.dart';
 import 'package:expense_tracker/features/budget/models/budget_model.dart';
 
 /// Expense chart showing cumulative daily spending vs budget baseline.
@@ -63,6 +65,7 @@ class _ExpenseChartState extends State<ExpenseChart>
 
   void _switchPeriod(bool weekly) {
     if (_isWeekly == weekly) return;
+    HapticFeedback.selectionClick();
     setState(() => _isWeekly = weekly);
     _fadeController
       ..reset()
@@ -97,6 +100,11 @@ class _ExpenseChartState extends State<ExpenseChart>
       totalPoints.add(FlSpot(i.toDouble(), totalCumulative.toDouble()));
     }
 
+    if (realPoints.isEmpty) {
+      realPoints.add(const FlSpot(0, 0));
+      totalPoints.add(const FlSpot(0, 0));
+    }
+
     final isOverBudget = realCumulative > budget;
     final lineColor = isOverBudget ? AppColors.error : AppColors.primary;
     final fillColor = isOverBudget ? AppColors.error : AppColors.primary;
@@ -104,11 +112,26 @@ class _ExpenseChartState extends State<ExpenseChart>
     final effectiveMax = _showTotal
         ? totalCumulative.toDouble()
         : realCumulative.toDouble();
-    final maxY = ([
-      budget.toDouble() * 1.15,
-      effectiveMax * 1.1,
+
+    // Smart maxY: when spending is very low relative to budget, avoid crushing
+    // the line to the bottom. Use whichever is larger: budget*1.15 OR
+    // actual*3 (gives room to rise), with a minimum of 1.0 to avoid
+    // division-by-zero in the chart.
+    final double maxY = [
+      budget.toDouble() * 0.4,   // at least 40% of budget so line has room
+      effectiveMax * 1.3,         // 30% headroom above actual spending
       1.0,
-    ].reduce((a, b) => a > b ? a : b));
+    ].reduce((a, b) => a > b ? a : b);
+
+    // Date range subtitle
+    String periodSubtitle = '';
+    if (days.isNotEmpty) {
+      final first = DateTime.tryParse(days.first.date);
+      final last = DateTime.tryParse(days.last.date);
+      if (first != null && last != null) {
+        periodSubtitle = '${DateFormatter.short(first)} – ${DateFormatter.short(last)}';
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -117,7 +140,7 @@ class _ExpenseChartState extends State<ExpenseChart>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isOverBudget
-              ? AppColors.error.withOpacity(0.4)
+              ? AppColors.error.withValues(alpha: 0.4)
               : AppColors.border,
         ),
       ),
@@ -136,14 +159,23 @@ class _ExpenseChartState extends State<ExpenseChart>
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 2),
+                  if (periodSubtitle.isNotEmpty)
+                    Text(
+                      periodSubtitle,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  const SizedBox(height: 4),
                   // Status badge
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: isOverBudget
-                          ? AppColors.error.withOpacity(0.15)
-                          : AppColors.success.withOpacity(0.12),
+                          ? AppColors.error.withValues(alpha: 0.15)
+                          : AppColors.success.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -159,7 +191,8 @@ class _ExpenseChartState extends State<ExpenseChart>
                         const SizedBox(width: 4),
                         Text(
                           isOverBudget
-                              ? 'Over limit by ${CurrencyFormatter.compact(budget)}'
+                              // Bug fix: was showing budget amount, now shows overage
+                              ? 'Over limit by ${CurrencyFormatter.compact(realCumulative - budget)}'
                               : '${CurrencyFormatter.compact(realCumulative)} / ${CurrencyFormatter.compact(budget)}',
                           style: TextStyle(
                             fontSize: 9,
@@ -216,12 +249,12 @@ class _ExpenseChartState extends State<ExpenseChart>
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: _showTotal
-                        ? AppColors.textDisabled.withOpacity(0.12)
+                        ? AppColors.textDisabled.withValues(alpha: 0.12)
                         : AppColors.surfaceVariant,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: _showTotal
-                          ? AppColors.textDisabled.withOpacity(0.4)
+                          ? AppColors.textDisabled.withValues(alpha: 0.4)
                           : AppColors.border,
                       width: 0.5,
                     ),
@@ -239,12 +272,12 @@ class _ExpenseChartState extends State<ExpenseChart>
                           size: 11,
                           color: _showTotal
                               ? AppColors.textDisabled
-                              : AppColors.textDisabled.withOpacity(0.5),
+                              : AppColors.textDisabled.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(width: 4),
                       _LegendItem(
-                        color: AppColors.textDisabled.withOpacity(_showTotal ? 1 : 0.4),
+                        color: AppColors.textDisabled.withValues(alpha: _showTotal ? 1 : 0.4),
                         label: 'Incl. ignored',
                         dashed: true,
                       ),
@@ -269,6 +302,10 @@ class _ExpenseChartState extends State<ExpenseChart>
               builder: (context, _) {
                 final totalOpacity = _totalLineAnimation.value;
 
+                // Guard interval against zero budget (prevents infinite grid lines)
+                final gridInterval = budget > 0 ? (budget / 4).toDouble() : maxY / 4;
+                final leftInterval = budget > 0 ? (budget / 2).toDouble() : maxY / 2;
+
                 return SizedBox(
                   height: 180,
                   child: LineChart(
@@ -281,7 +318,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                       gridData: FlGridData(
                         show: true,
                         drawVerticalLine: false,
-                        horizontalInterval: budget / 4,
+                        horizontalInterval: gridInterval,
                         getDrawingHorizontalLine: (_) => FlLine(
                           color: AppColors.border,
                           strokeWidth: 0.5,
@@ -293,7 +330,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 48,
-                            interval: budget / 2,
+                            interval: leftInterval,
                             getTitlesWidget: (val, _) => Text(
                               CurrencyFormatter.compact(val.toInt()),
                               style: const TextStyle(
@@ -340,7 +377,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                         horizontalLines: [
                           HorizontalLine(
                             y: budget.toDouble(),
-                            color: AppColors.error.withOpacity(0.75),
+                            color: AppColors.error.withValues(alpha: 0.75),
                             strokeWidth: 1.5,
                             dashArray: [6, 4],
                             label: HorizontalLineLabel(
@@ -365,8 +402,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                             spots: totalPoints,
                             isCurved: true,
                             curveSmoothness: 0.3,
-                            color: AppColors.textDisabled.withOpacity(
-                                totalOpacity * 0.8),
+                            color: AppColors.textDisabled.withValues(alpha: totalOpacity * 0.8),
                             barWidth: 1.5,
                             dashArray: [5, 4],
                             dotData: const FlDotData(show: false),
@@ -400,8 +436,8 @@ class _ExpenseChartState extends State<ExpenseChart>
                             show: true,
                             gradient: LinearGradient(
                               colors: [
-                                fillColor.withOpacity(0.22),
-                                fillColor.withOpacity(0.0),
+                                fillColor.withValues(alpha: 0.22),
+                                fillColor.withValues(alpha: 0.0),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -508,7 +544,7 @@ class _LegendItem extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 9,
-            color: color.withOpacity(color.opacity < 0.5 ? 0.5 : 1.0),
+            color: color.withValues(alpha: color.a < 0.5 ? 0.5 : 1.0),
           ),
         ),
       ],

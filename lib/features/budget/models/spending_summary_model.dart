@@ -18,10 +18,11 @@ class SpendingEntry {
   });
 
   factory SpendingEntry.fromJson(Map<String, dynamic> json, String mode) {
+    final rawIndex = json[mode == 'week' ? 'week' : 'month'] as num?;
     return SpendingEntry(
-      index: (json[mode == 'week' ? 'week' : 'month'] as num).toInt(),
-      realSpent: (json['realSpent'] as num).toInt(),
-      totalSpent: (json['totalSpent'] as num).toInt(),
+      index: rawIndex?.toInt() ?? 1,
+      realSpent: (json['realSpent'] as num?)?.toInt() ?? 0,
+      totalSpent: (json['totalSpent'] as num?)?.toInt() ?? 0,
       startDate: json['startDate'] as String?,
       endDate: json['endDate'] as String?,
     );
@@ -45,15 +46,19 @@ class SpendingSummaryModel {
   });
 
   factory SpendingSummaryModel.fromJson(Map<String, dynamic> json) {
-    final mode = json['mode'] as String;
+    final mode = json['mode'] as String? ?? 'week';
+    final rawEntries = json['entries'] as List?;
     return SpendingSummaryModel(
       mode: mode,
-      year: (json['year'] as num).toInt(),
-      month: json['month'] != null ? (json['month'] as num).toInt() : null,
-      budget: (json['budget'] as num).toInt(),
-      entries: (json['entries'] as List)
-          .map((e) => SpendingEntry.fromJson(e as Map<String, dynamic>, mode))
-          .toList(),
+      year: (json['year'] as num?)?.toInt() ?? DateTime.now().year,
+      month: (json['month'] as num?)?.toInt(),
+      budget: (json['budget'] as num?)?.toInt() ?? 0,
+      entries: rawEntries != null
+          ? rawEntries
+              .whereType<Map<String, dynamic>>()
+              .map((e) => SpendingEntry.fromJson(e, mode))
+              .toList()
+          : const [],
     );
   }
 }
