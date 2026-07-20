@@ -175,6 +175,69 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
     fetch();
   }
 
+  /// Creates a manual transaction, then reloads the list so it appears in the
+  /// correct position for the active filters/sort.
+  ///
+  /// Returns null on success, or an error message on failure.
+  Future<String?> createTransaction({
+    required String merchant,
+    required int amount,
+    required DateTime date,
+    String? categoryId,
+    String? notes,
+  }) async {
+    try {
+      await ApiClient.instance.post(
+        ApiEndpoints.transactions,
+        data: {
+          'merchant': merchant,
+          'amount': amount,
+          'transactionDate': date.toIso8601String(),
+          if (categoryId != null) 'categoryId': categoryId,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+        },
+      );
+      await fetch();
+      return null;
+    } catch (e) {
+      return extractApiError(e);
+    }
+  }
+
+  /// Permanently deletes a transaction and removes it from the list,
+  /// adjusting the running totals.
+  ///
+  /// Returns null on success, or an error message on failure.
+  Future<String?> deleteTransaction(String id) async {
+    try {
+      await ApiClient.instance.delete(ApiEndpoints.transactionById(id));
+
+      TransactionModel? removed;
+      final remaining = <TransactionModel>[];
+      for (final tx in state.transactions) {
+        if (tx.id == id) {
+          removed = tx;
+        } else {
+          remaining.add(tx);
+        }
+      }
+
+      // Only non-ignored transactions contribute to totalAmount.
+      final amountDiff =
+          (removed != null && !removed.isIgnored) ? removed.amount : 0;
+
+      state = state.copyWith(
+        transactions: remaining,
+        total: removed != null && state.total > 0 ? state.total - 1 : state.total,
+        totalAmount: state.totalAmount - amountDiff,
+      );
+      return null;
+    } catch (e) {
+      state = state.copyWith(error: extractApiError(e));
+      return extractApiError(e);
+    }
+  }
+
   /// Updates a transaction in-place (for ignore toggle / category change / amount edit)
   Future<void> updateTransaction(
     String id, {

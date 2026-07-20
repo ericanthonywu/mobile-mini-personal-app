@@ -26,6 +26,10 @@ class TransactionCard extends StatelessWidget {
   /// Called when the user taps anywhere on the card.
   final VoidCallback? onTap;
 
+  /// Called when the user chooses to permanently delete the transaction.
+  /// If null, the delete action is not shown.
+  final VoidCallback? onDelete;
+
   const TransactionCard({
     super.key,
     required this.transaction,
@@ -34,13 +38,17 @@ class TransactionCard extends StatelessWidget {
     this.onCategoryTap,
     this.onAmountTap,
     this.onTap,
+    this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final card = _buildCard(context);
 
-    if (!showIgnoreSlide || onIgnoreToggle == null) {
+    final hasIgnore = showIgnoreSlide && onIgnoreToggle != null;
+    final hasDelete = onDelete != null;
+
+    if (!hasIgnore && !hasDelete) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: card,
@@ -53,16 +61,26 @@ class TransactionCard extends StatelessWidget {
         key: ValueKey(transaction.id),
         endActionPane: ActionPane(
           motion: const DrawerMotion(),
-          extentRatio: 0.28,
+          extentRatio: hasIgnore && hasDelete ? 0.5 : 0.28,
           children: [
-            SlidableAction(
-              onPressed: (_) => onIgnoreToggle!(!transaction.isIgnored),
-              backgroundColor: transaction.isIgnored ? AppColors.primary : AppColors.surfaceVariant,
-              foregroundColor: transaction.isIgnored ? Colors.white : AppColors.textSecondary,
-              icon: transaction.isIgnored ? Icons.visibility_rounded : Icons.visibility_off_outlined,
-              label: transaction.isIgnored ? 'Restore' : 'Ignore',
-              borderRadius: BorderRadius.circular(12),
-            ),
+            if (hasIgnore)
+              SlidableAction(
+                onPressed: (_) => onIgnoreToggle!(!transaction.isIgnored),
+                backgroundColor: transaction.isIgnored ? AppColors.primary : AppColors.surfaceVariant,
+                foregroundColor: transaction.isIgnored ? Colors.white : AppColors.textSecondary,
+                icon: transaction.isIgnored ? Icons.visibility_rounded : Icons.visibility_off_outlined,
+                label: transaction.isIgnored ? 'Restore' : 'Ignore',
+                borderRadius: BorderRadius.circular(12),
+              ),
+            if (hasDelete)
+              SlidableAction(
+                onPressed: (_) => onDelete!(),
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                icon: Icons.delete_outline_rounded,
+                label: 'Delete',
+                borderRadius: BorderRadius.circular(12),
+              ),
           ],
         ),
         child: card,

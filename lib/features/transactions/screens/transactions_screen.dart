@@ -604,6 +604,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        onPressed: () => _showAddTransactionSheet(context),
+        child: const Icon(Icons.add),
+      ),
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
           SliverAppBar(
@@ -829,10 +835,259 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
             },
             onCategoryTap: () => _showCategoryPicker(context, tx),
             onAmountTap: () => _showAmountEditor(context, tx),
+            onDelete: () => _confirmDelete(context, tx),
           );
         },
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, TransactionModel tx) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Transaction'),
+        content: Text(
+          'Permanently delete "${tx.merchant}"? This cannot be undone.',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final error = await ref.read(transactionProvider.notifier).deleteTransaction(tx.id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Transaction deleted'),
+        backgroundColor: error != null ? AppColors.error : null,
+      ),
+    );
+  }
+
+  void _showAddTransactionSheet(BuildContext context) {
+    final categories = ref.read(categoriesProvider).valueOrNull ?? [];
+    final merchantController = TextEditingController();
+    final amountController = TextEditingController();
+    final notesController = TextEditingController();
+    DateTime selectedDate = DateTime.now();
+    String? selectedCategoryId;
+    bool submitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final dateLabel =
+                "${selectedDate.day} ${_monthShortNames[selectedDate.month - 1]} ${selectedDate.year}";
+
+            Future<void> submit() async {
+              final merchant = merchantController.text.trim();
+              final amount = int.tryParse(amountController.text);
+              if (merchant.isEmpty || amount == null || amount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Enter a merchant and a valid amount'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              setModalState(() => submitting = true);
+              final error = await ref.read(transactionProvider.notifier).createTransaction(
+                    merchant: merchant,
+                    amount: amount,
+                    date: selectedDate,
+                    categoryId: selectedCategoryId,
+                    notes: notesController.text.trim(),
+                  );
+              if (!sheetCtx.mounted) return;
+              if (error != null) {
+                setModalState(() => submitting = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error), backgroundColor: AppColors.error),
+                );
+                return;
+              }
+              Navigator.pop(sheetCtx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Transaction added')),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20, 20, 20,
+                20 + MediaQuery.of(sheetCtx).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Add Transaction', style: Theme.of(context).textTheme.titleLarge),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheetCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Merchant
+                    TextField(
+                      controller: merchantController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Merchant',
+                        hintText: 'e.g. Starbucks',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Amount
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                        labelText: 'Amount',
+                        prefixText: 'Rp ',
+                        hintText: '0',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Date
+                    Text('Date', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          builder: (context, child) => Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: const ColorScheme.dark(
+                                primary: AppColors.primary,
+                                onPrimary: Colors.white,
+                                surface: AppColors.surface,
+                                onSurface: AppColors.textPrimary,
+                              ),
+                            ),
+                            child: child!,
+                          ),
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            // Preserve time-of-day so ordering stays stable.
+                            selectedDate = DateTime(
+                              picked.year, picked.month, picked.day,
+                              selectedDate.hour, selectedDate.minute,
+                            );
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 16, color: AppColors.primary),
+                            const SizedBox(width: 10),
+                            Text(dateLabel, style: const TextStyle(color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (categories.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text('Category', style: Theme.of(context).textTheme.bodySmall),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _CategorySelectChip(
+                            label: 'None',
+                            selected: selectedCategoryId == null,
+                            onTap: () => setModalState(() => selectedCategoryId = null),
+                          ),
+                          ...categories.map((c) => _CategorySelectChip(
+                                label: c.name,
+                                color: c.colorValue,
+                                selected: selectedCategoryId == c.id,
+                                onTap: () => setModalState(() => selectedCategoryId = c.id),
+                              )),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    // Notes (optional)
+                    TextField(
+                      controller: notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Notes (optional)',
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: submitting ? null : submit,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: submitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Add Transaction', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      merchantController.dispose();
+      amountController.dispose();
+      notesController.dispose();
+    });
   }
 
   void _showCategoryPicker(BuildContext context, TransactionModel tx) {
@@ -985,6 +1240,54 @@ class _FilterChip extends StatelessWidget {
             fontWeight: FontWeight.w500,
             color: selected ? Colors.white : AppColors.textSecondary,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategorySelectChip extends StatelessWidget {
+  final String label;
+  final Color? color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategorySelectChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (color != null) ...[
+              CircleAvatar(radius: 6, backgroundColor: color),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: selected ? Colors.white : AppColors.textSecondary,
+              ),
+            ),
+          ],
         ),
       ),
     );
