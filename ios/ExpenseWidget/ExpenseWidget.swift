@@ -183,6 +183,35 @@ struct RefreshBudgetIntent: AppIntent {
     }
 }
 
+// MARK: - App Group Cache Helper
+
+struct CacheHelper {
+    static let suiteName = "group.com.ericanthonywu.expenseTracker"
+    static let cacheKey = "cached_budget_summary"
+    static let alertKey = "cached_alert_count"
+
+    static func saveCache(summary: BudgetSummary, alertCount: Int) {
+        let defaults = UserDefaults(suiteName: suiteName)
+        if let data = try? JSONEncoder().encode(summary) {
+            defaults?.set(String(data: data, encoding: .utf8), forKey: cacheKey)
+            defaults?.set(alertCount, forKey: alertKey)
+        }
+    }
+
+    static func loadCache() -> (summary: BudgetSummary?, alertCount: Int) {
+        let defaults = UserDefaults(suiteName: suiteName)
+        let alertCount = defaults?.integer(forKey: alertKey) ?? 0
+
+        guard let jsonString = defaults?.string(forKey: cacheKey),
+              let data = jsonString.data(using: .utf8),
+              let summary = try? JSONDecoder().decode(BudgetSummary.self, from: data)
+        else {
+            return (nil, alertCount)
+        }
+        return (summary, alertCount)
+    }
+}
+
 // MARK: - Timeline Provider
 
 struct BudgetTimelineProvider: TimelineProvider {
@@ -204,16 +233,28 @@ struct BudgetTimelineProvider: TimelineProvider {
 
     private func fetchEntry() async -> WidgetEntry {
         guard let token = KeychainHelper.readToken() else {
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Belum login", alertCount: 0)
+            let (cachedSummary, cachedAlerts) = CacheHelper.loadCache()
+            if let cachedSummary = cachedSummary {
+                return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, error: nil, alertCount: cachedAlerts)
+            }
+            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Silakan masuk ke aplikasi", alertCount: 0)
         }
         do {
             // Fetch budget and alert count concurrently
             async let budgetFetch = BudgetFetcher.fetch(token: token)
             async let alertFetch  = AlertFetcher.fetchCount(token: token)
             let (summary, alertCount) = try await (budgetFetch, alertFetch)
+
+            // Persist to App Group UserDefaults cache
+            CacheHelper.saveCache(summary: summary, alertCount: alertCount)
+
             return WidgetEntry(date: Date(), week: summary.week, month: summary.month, error: nil, alertCount: alertCount)
         } catch {
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Gagal memuat data", alertCount: 0)
+            let (cachedSummary, cachedAlerts) = CacheHelper.loadCache()
+            if let cachedSummary = cachedSummary {
+                return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, error: nil, alertCount: cachedAlerts)
+            }
+            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Gagal memperbarui data", alertCount: 0)
         }
     }
 }
@@ -283,7 +324,7 @@ struct PeriodSection: View {
                 .minimumScaleFactor(0.6)
 
             // Budget reference
-            Text("dari \(period.budget.rupiah)")
+            Text("Budget: \(period.budget.rupiah)")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
 
@@ -294,8 +335,8 @@ struct PeriodSection: View {
 
             // Remaining / overage
             Text(period.isOverBudget
-                 ? "Lebih \((period.realSpent - period.budget).rupiahCompact)"
-                 : "Sisa \(period.remaining.rupiahCompact)")
+                 ? "Over budget \((period.realSpent - period.budget).rupiahCompact)"
+                 : "Sisa budget \(period.remaining.rupiahCompact)")
                 .font(.caption2)
                 .fontWeight(.medium)
                 .foregroundStyle(color.opacity(0.85))
@@ -406,7 +447,7 @@ struct MediumWidgetView: View {
                         Image(systemName: "creditcard.fill")
                             .font(.caption2)
                             .foregroundStyle(.tint)
-                        Text("Expense Tracker")
+                        Text("Pengeluaran Saya")
                             .font(.caption2)
                             .fontWeight(.semibold)
                             .foregroundStyle(.tint)
@@ -470,7 +511,7 @@ struct LargeWidgetView: View {
             VStack(alignment: .leading, spacing: 14) {
                 // Header with refresh button
                 HStack {
-                    Label("Expense Tracker", systemImage: "creditcard.fill")
+                    Label("Pengeluaran Saya", systemImage: "creditcard.fill")
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.tint)
@@ -532,57 +573,51 @@ struct LargeWidgetView: View {
     }
 }
 
-// MARK: - Lock Screen Widget Views
+// MARK: - Lock Screen & CarPlay Accessory Views
 
 struct LockScreenRectangularView: View {
     let entry: WidgetEntry
 
     var body: some View {
-        if let week = entry.week, let month = entry.month {
+        if let week = entry.week {
             VStack(alignment: .leading, spacing: 3) {
-                // Header row with refresh button
                 HStack(spacing: 4) {
                     Image(systemName: "creditcard.fill")
                         .font(.system(size: 9))
-                    Text("EXPENSE")
+                    Text("PENGELUARAN")
                         .font(.system(size: 9, weight: .bold))
-                    Spacer()
-                    // Refresh button fits in the header row
-                    Button(intent: RefreshBudgetIntent()) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 9, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
                 }
                 .foregroundStyle(.secondary)
 
                 HStack {
-                    Text("Minggu:")
+                    Text("Minggu ini:")
                         .font(.system(size: 11, weight: .medium))
                     Spacer()
-                    Text(week.realSpent.rupiahCompact)
+                    Text("\(week.realSpent.rupiahCompact) / \(week.budget.rupiahCompact)")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
 
-                HStack {
-                    Text("Bulan:")
-                        .font(.system(size: 11, weight: .medium))
-                    Spacer()
-                    Text(month.realSpent.rupiahCompact)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                if let month = entry.month {
+                    HStack {
+                        Text("Bulan ini:")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                        Text("\(month.realSpent.rupiahCompact) / \(month.budget.rupiahCompact)")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
                 }
             }
         } else {
-            // Error / loading state — whole widget taps to refresh
-            Button(intent: RefreshBudgetIntent()) {
-                HStack(spacing: 4) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 10))
-                    Text(entry.error ?? "Expense Tracker")
-                        .font(.caption2)
-                }
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 10))
+                Text(entry.error ?? "Pengeluaran Saya")
+                    .font(.caption2)
             }
-            .buttonStyle(.plain)
         }
     }
 }
@@ -591,28 +626,17 @@ struct LockScreenCircularView: View {
     let entry: WidgetEntry
 
     var body: some View {
-        // The entire circular widget is a refresh button —
-        // no room for a separate icon at this size.
-        Button(intent: RefreshBudgetIntent()) {
-            if let week = entry.week {
-                Gauge(value: min(Double(week.percentUsed) / 100.0, 1.0)) {
-                    Image(systemName: "creditcard.fill")
-                } currentValueLabel: {
-                    Text("\(week.percentUsed)%")
-                        .font(.system(size: 10, weight: .bold))
-                }
-                .gaugeStyle(.accessoryCircular)
-            } else {
-                // Show refresh icon when data unavailable
-                ZStack {
-                    Image(systemName: "creditcard.fill")
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 8, weight: .bold))
-                        .offset(x: 8, y: 8)
-                }
+        if let week = entry.week {
+            Gauge(value: min(Double(week.percentUsed) / 100.0, 1.0)) {
+                Image(systemName: "creditcard.fill")
+            } currentValueLabel: {
+                Text("\(week.percentUsed)%")
+                    .font(.system(size: 10, weight: .bold))
             }
+            .gaugeStyle(.accessoryCircular)
+        } else {
+            Image(systemName: "creditcard.fill")
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -620,18 +644,21 @@ struct LockScreenInlineView: View {
     let entry: WidgetEntry
 
     var body: some View {
-        // Inline widgets have a single line — tap to refresh.
-        Button(intent: RefreshBudgetIntent()) {
-            if let week = entry.week, let month = entry.month {
+        if let week = entry.week {
+            if let month = entry.month {
                 Label(
-                    "Mgg: \(week.realSpent.rupiahCompact) · Bln: \(month.realSpent.rupiahCompact)",
-                    systemImage: "arrow.clockwise"
+                    "Mgg: \(week.realSpent.rupiahCompact)/\(week.budget.rupiahCompact) · Bln: \(month.realSpent.rupiahCompact)/\(month.budget.rupiahCompact)",
+                    systemImage: "creditcard.fill"
                 )
             } else {
-                Label("Expense Tracker", systemImage: "arrow.clockwise")
+                Label(
+                    "Mgg: \(week.realSpent.rupiahCompact)/\(week.budget.rupiahCompact)",
+                    systemImage: "creditcard.fill"
+                )
             }
+        } else {
+            Label("Pengeluaran Saya", systemImage: "creditcard.fill")
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -653,7 +680,9 @@ struct ExpenseWidgetEntryView: View {
             default:                     MediumWidgetView(entry: entry)
             }
         }
-        .containerBackground(.regularMaterial, for: .widget)
+        .containerBackground(for: .widget) {
+            Color(uiColor: .secondarySystemGroupedBackground)
+        }
     }
 }
 
@@ -666,8 +695,8 @@ struct ExpenseWidget: Widget {
         StaticConfiguration(kind: kind, provider: BudgetTimelineProvider()) { entry in
             ExpenseWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Expense Tracker")
-        .description("Pantau pengeluaran minggu dan bulan ini.")
+        .configurationDisplayName("Pengeluaran & Budget")
+        .description("Pantau sisa budget dan status pengeluaran mingguan & bulanan Anda.")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,

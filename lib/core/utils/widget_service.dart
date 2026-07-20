@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 import 'package:expense_tracker/core/config/app_config.dart';
 
@@ -22,6 +23,20 @@ class WidgetService {
     await HomeWidget.saveWidgetData<String>('base_url', AppConfig.baseUrl);
   }
 
+  /// Save budget summary JSON to App Group UserDefaults and refresh widget.
+  static Future<void> saveBudgetSummary(Map<String, dynamic> jsonMap) async {
+    try {
+      await HomeWidget.setAppGroupId(_appGroupId);
+      await HomeWidget.saveWidgetData<String>(
+        'cached_budget_summary',
+        jsonEncode(jsonMap),
+      );
+      await refreshWidget();
+    } catch (_) {
+      // Failing silently is acceptable
+    }
+  }
+
   /// Ask WidgetKit to reload the timeline for all ExpenseWidget instances.
   ///
   /// iOS will call `getTimeline()` on the Swift side shortly after, which
@@ -38,3 +53,4 @@ class WidgetService {
     }
   }
 }
+

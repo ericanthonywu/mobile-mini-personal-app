@@ -302,9 +302,19 @@ class _BarChartContent extends StatelessWidget {
                   getTooltipColor: (_) => AppColors.surfaceHighlight,
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final e = entries[group.x];
-                    final label = isWeekly
-                        ? 'Minggu ${e.index}'
-                        : _shortMonth(e.index);
+                    String label;
+                    if (isWeekly) {
+                      // Show date range if available (cross-month weeks make this essential)
+                      if (e.startDate != null && e.endDate != null) {
+                        final start = DateTime.parse(e.startDate!);
+                        final end = DateTime.parse(e.endDate!);
+                        label = 'W${e.index}: ${_formatShortDate(start)} – ${_formatShortDate(end)}';
+                      } else {
+                        label = 'Minggu ${e.index}';
+                      }
+                    } else {
+                      label = _shortMonth(e.index);
+                    }
                     return BarTooltipItem(
                       '$label\n${CurrencyFormatter.compact(e.realSpent)}',
                       const TextStyle(
@@ -401,6 +411,14 @@ class _BarChartContent extends StatelessWidget {
       'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
     ];
     return m >= 1 && m <= 12 ? names[m] : '';
+  }
+
+  String _formatShortDate(DateTime d) {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+    ];
+    return '${d.day} ${months[d.month]}';
   }
 }
 

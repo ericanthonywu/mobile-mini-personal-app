@@ -6,7 +6,9 @@ import 'package:expense_tracker/features/budget/models/budget_model.dart';
 
 final budgetProvider = FutureProvider<BudgetSummaryModel>((ref) async {
   final response = await ApiClient.instance.get(ApiEndpoints.budget);
-  return BudgetSummaryModel.fromJson(response.data as Map<String, dynamic>);
+  final map = response.data as Map<String, dynamic>;
+  await WidgetService.saveBudgetSummary(map);
+  return BudgetSummaryModel.fromJson(map);
 });
 
 /// Chart data for weekly/monthly expense graphs

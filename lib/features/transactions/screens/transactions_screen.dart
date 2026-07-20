@@ -77,30 +77,34 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     super.dispose();
   }
 
+  /// Generates Mon–Sun calendar weeks that cover the given month.
+  ///
+  /// The first week starts on the Monday on or before the 1st of the month.
+  /// The last week ends on the Sunday on or after the last day of the month.
+  /// This means weeks can span month boundaries (e.g. Jul 27–Aug 2), which
+  /// matches the backend's `findWeeklyTotals` logic so totals are always consistent.
   List<Map<String, dynamic>> _getWeeksOfMonth(int year, int month) {
     final weeks = <Map<String, dynamic>>[];
     final firstDayOfMonth = DateTime(year, month, 1);
-    final lastDayOfMonth = DateTime(year, month + 1, 0);
+    final lastDayOfMonth = DateTime(year, month + 1, 0); // last day of month
 
-    DateTime current = firstDayOfMonth;
+    // Find the Monday on or before the 1st of the month
+    final firstDow = firstDayOfMonth.weekday; // 1=Mon, 7=Sun
+    final daysToMonday = firstDow - 1; // how many days back to reach Monday
+    DateTime weekStart = firstDayOfMonth.subtract(Duration(days: daysToMonday));
+
     int weekIndex = 1;
-
-    while (current.isBefore(lastDayOfMonth) || current.isAtSameMomentAs(lastDayOfMonth)) {
-      final start = current;
-      int daysToSunday = 7 - current.weekday;
-      DateTime end = current.add(Duration(days: daysToSunday));
-      if (end.isAfter(lastDayOfMonth)) {
-        end = lastDayOfMonth;
-      }
+    while (weekStart.isBefore(lastDayOfMonth) || weekStart.isAtSameMomentAs(lastDayOfMonth)) {
+      final weekEnd = weekStart.add(const Duration(days: 6));
 
       weeks.add({
         'index': weekIndex,
-        'start': DateTime(start.year, start.month, start.day, 0, 0, 0),
-        'end': DateTime(end.year, end.month, end.day, 23, 59, 59, 999),
+        'start': DateTime(weekStart.year, weekStart.month, weekStart.day, 0, 0, 0),
+        'end': DateTime(weekEnd.year, weekEnd.month, weekEnd.day, 23, 59, 59, 999),
       });
 
       weekIndex++;
-      current = end.add(const Duration(days: 1));
+      weekStart = weekStart.add(const Duration(days: 7));
     }
     return weeks;
   }

@@ -23,7 +23,7 @@ class BudgetScreen extends ConsumerWidget {
             backgroundColor: AppColors.background,
             scrolledUnderElevation: 0,
             surfaceTintColor: Colors.transparent,
-            title: Text('Anggaran', style: Theme.of(context).textTheme.headlineSmall),
+            title: Text('Target & Analisis Budget', style: Theme.of(context).textTheme.headlineSmall),
             actions: [
               IconButton(
                 icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
@@ -67,7 +67,7 @@ class BudgetScreen extends ConsumerWidget {
 
                   // Real vs Total breakdown
                   _ComparisonBarCard(
-                    label: 'Pengeluaran Nyata vs Total',
+                    label: 'Perbandingan Pengeluaran Real & Total',
                     realSpent: budget.month.realSpent,
                     totalSpent: budget.month.totalSpent,
                     budget: budget.month.budget,
@@ -148,13 +148,13 @@ class _BudgetRingCard extends StatelessWidget {
                         PieChartSectionData(
                           value: value * 100,
                           color: _color,
-                          radius: 14,
+                          radius: 12,
                           showTitle: false,
                         ),
                         PieChartSectionData(
-                          value: (1 - value) * 100,
+                          value: (1 - value).clamp(0, 1) * 100,
                           color: AppColors.surfaceVariant,
-                          radius: 14,
+                          radius: 12,
                           showTitle: false,
                         ),
                       ],
@@ -164,17 +164,17 @@ class _BudgetRingCard extends StatelessWidget {
                 Text(
                   '${period.percentUsed}%',
                   style: TextStyle(
-                    color: _color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
                     fontFamily: 'Inter',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _color,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 20),
-          // Stats
+          // Breakdown details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,17 +186,17 @@ class _BudgetRingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _StatRow(
-                  label: 'Anggaran',
+                  label: 'Budget',
                   value: CurrencyFormatter.format(period.budget),
                   color: AppColors.textSecondary,
                 ),
                 const SizedBox(height: 8),
                 _StatRow(
-                  label: period.isOverBudget ? 'Lebih' : 'Sisa',
+                  label: period.isOverBudget ? 'Over Budget' : 'Sisa Budget',
                   value: CurrencyFormatter.format(
-                    period.isOverBudget ? period.realSpent - period.budget : period.remaining,
+                    period.isOverBudget ? (period.realSpent - period.budget) : period.remaining,
                   ),
-                  color: period.isOverBudget ? AppColors.error : AppColors.success,
+                  color: _color,
                 ),
                 if (period.ignoredAmount > 0) ...[
                   const SizedBox(height: 8),
@@ -284,7 +284,7 @@ class _ComparisonBarCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, _) {
-                        final labels = ['Nyata', 'Total', 'Anggaran'];
+                        final labels = ['Aktual', 'Total', 'Budget'];
                         return Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
@@ -347,14 +347,14 @@ class _StatsGrid extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _StatCard(
-              title: 'Sisa Minggu Ini',
+              title: 'Sisa Budget Minggu Ini',
               value: CurrencyFormatter.format(budget.week.remaining),
               icon: Icons.calendar_view_week_rounded,
               color: budget.week.isOverBudget ? AppColors.error : AppColors.success,
             )),
             const SizedBox(width: 12),
             Expanded(child: _StatCard(
-              title: 'Sisa Bulan Ini',
+              title: 'Sisa Budget Bulan Ini',
               value: CurrencyFormatter.format(budget.month.remaining),
               icon: Icons.calendar_month_rounded,
               color: budget.month.isOverBudget ? AppColors.error : AppColors.success,
@@ -365,14 +365,14 @@ class _StatsGrid extends StatelessWidget {
         Row(
           children: [
             Expanded(child: _StatCard(
-              title: 'Total Diabaikan',
+              title: 'Total Transaksi Diabaikan',
               value: CurrencyFormatter.format(budget.month.ignoredAmount),
               icon: Icons.visibility_off_outlined,
               color: AppColors.textSecondary,
             )),
             const SizedBox(width: 12),
             Expanded(child: _StatCard(
-              title: 'Penggunaan Bulan',
+              title: 'Penggunaan Budget Bulan',
               value: '${budget.month.percentUsed}%',
               icon: Icons.donut_small_rounded,
               color: budget.month.isOverBudget ? AppColors.error

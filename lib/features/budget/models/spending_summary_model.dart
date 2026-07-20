@@ -4,11 +4,17 @@ class SpendingEntry {
   final int index;
   final int realSpent;
   final int totalSpent;
+  /// Only present when mode == 'week'. ISO date string e.g. "2026-07-27".
+  final String? startDate;
+  /// Only present when mode == 'week'. ISO date string e.g. "2026-08-02".
+  final String? endDate;
 
   const SpendingEntry({
     required this.index,
     required this.realSpent,
     required this.totalSpent,
+    this.startDate,
+    this.endDate,
   });
 
   factory SpendingEntry.fromJson(Map<String, dynamic> json, String mode) {
@@ -16,6 +22,8 @@ class SpendingEntry {
       index: (json[mode == 'week' ? 'week' : 'month'] as num).toInt(),
       realSpent: (json['realSpent'] as num).toInt(),
       totalSpent: (json['totalSpent'] as num).toInt(),
+      startDate: json['startDate'] as String?,
+      endDate: json['endDate'] as String?,
     );
   }
 }
