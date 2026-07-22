@@ -17,6 +17,8 @@ import 'package:expense_tracker/shared/widgets/app_error_widget.dart';
 import 'package:expense_tracker/features/dashboard/providers/alert_provider.dart';
 import 'package:expense_tracker/features/dashboard/widgets/alert_banner.dart';
 import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
+import 'package:expense_tracker/features/dashboard/providers/daily_chart_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/spending_summary_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -38,10 +40,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     ref.invalidate(budgetChartProvider);
     ref.invalidate(dailySummaryProvider);
     ref.invalidate(alertsProvider);
+    ref.invalidate(dailyChartProvider);
+    ref.invalidate(spendingSummaryProvider);
     setState(() {
       _lastSyncedAt = DateTime.now();
     });
     await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  /// Applies a date filter to the transaction provider and navigates to /transactions.
+  void _navigateToTransactions(BuildContext context, DateTime from, DateTime to, String label) {
+    HapticFeedback.selectionClick();
+    final notifier = ref.read(transactionProvider.notifier);
+    final currentFilters = ref.read(transactionProvider).filters;
+    notifier.applyFilters(
+      currentFilters.copyWith(dateFrom: from, dateTo: to),
+      dateLabel: label,
+    );
+    context.go('/transactions');
   }
 
   @override
@@ -120,7 +136,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   ),
 
                   // Today's Spending Summary (Daily Spending & Top 5)
-                  const DailySpendingCard(),
+                  _TappableCard(
+                    onTap: () {
+                      final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+                      final todayStart = DateTime(now.year, now.month, now.day, 0, 0, 0);
+                      final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+                      _navigateToTransactions(context, todayStart, todayEnd, 'Today');
+                    },
+                    child: const DailySpendingCard(),
+                  ),
                   const SizedBox(height: 20),
 
                   // Budget Overview Cards
@@ -132,16 +156,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                     ),
                     data: (budget) => Column(
                       children: [
-                        _BudgetCard(
-                          label: 'This Week',
-                          period: budget.week,
-                          isFeatured: true,
+                        _TappableCard(
+                          onTap: () => _navigateToTransactions(
+                            context,
+                            budget.week.start,
+                            budget.week.end,
+                            'This Week',
+                          ),
+                          child: _BudgetCard(
+                            label: 'This Week',
+                            period: budget.week,
+                            isFeatured: true,
+                          ),
                         ),
                         const SizedBox(height: 12),
-                        _BudgetCard(
-                          label: 'This Month',
-                          period: budget.month,
-                          isFeatured: false,
+                        _TappableCard(
+                          onTap: () => _navigateToTransactions(
+                            context,
+                            budget.month.start,
+                            budget.month.end,
+                            'This Month',
+                          ),
+                          child: _BudgetCard(
+                            label: 'This Month',
+                            period: budget.month,
+                            isFeatured: false,
+                          ),
                         ),
                       ],
                     ),
@@ -638,6 +678,8 @@ class _SyncFab extends StatelessWidget {
                 ref.invalidate(budgetChartProvider);
                 ref.invalidate(dailySummaryProvider);
                 ref.invalidate(alertsProvider);
+                ref.invalidate(dailyChartProvider);
+                ref.invalidate(spendingSummaryProvider);
                 onSyncComplete();
               }
             },
@@ -690,4 +732,35 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+/// A transparent wrapper that adds a ripple tap gesture over its [child]
+/// without affecting layout or visual appearance.
+class _TappableCard extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onTap;
 
+  const _TappableCard({required this.child, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Stack(
+        children: [
+          child,
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(18),
+                splashColor: AppColors.primary.withValues(alpha: 0.08),
+                highlightColor: AppColors.primary.withValues(alpha: 0.04),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -60,6 +60,8 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
     final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     _selectedYear = now.year;
     _selectedMonth = now.month;
+    // Auto-select today's week number (Mon–Sun, 1-based within the month)
+    _selectedWeek = _currentWeekNumber(now);
 
     _fadeController = AnimationController(
       vsync: this,
@@ -68,6 +70,17 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
     _fadeAnimation =
         CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
+  }
+
+  /// Computes the 1-based Mon–Sun week number within the month for [date],
+  /// using the same logic as the backend / filter sheet.
+  static int _currentWeekNumber(DateTime date) {
+    final firstDayOfMonth = DateTime(date.year, date.month, 1);
+    final firstDow = firstDayOfMonth.weekday; // 1=Mon
+    final daysToMonday = firstDow - 1;
+    final firstMonday = firstDayOfMonth.subtract(Duration(days: daysToMonday));
+    final today = DateTime(date.year, date.month, date.day);
+    return ((today.difference(firstMonday).inDays) ~/ 7) + 1;
   }
 
   @override
@@ -87,6 +100,7 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
 
   void _changeMonth(int delta) {
     HapticFeedback.selectionClick();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     setState(() {
       int newMonth = _selectedMonth + delta;
       if (newMonth < 1) {
@@ -98,8 +112,13 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
       } else {
         _selectedMonth = newMonth;
       }
-      _selectedWeek = null; // reset week when month changes
-      _weekScrollOffset = 0.0; // reset scroll offset
+      // Auto-select today's week when returning to current month, else reset
+      if (_selectedYear == now.year && _selectedMonth == now.month) {
+        _selectedWeek = _currentWeekNumber(now);
+      } else {
+        _selectedWeek = null;
+      }
+      _weekScrollOffset = 0.0;
     });
     _fadeController
       ..reset()
@@ -108,9 +127,15 @@ class _SpendingSummaryChartState extends ConsumerState<SpendingSummaryChart>
 
   void _changeYear(int delta) {
     HapticFeedback.selectionClick();
+    final now = DateTime.now().toUtc().add(const Duration(hours: 7));
     setState(() {
       _selectedYear += delta;
-      _selectedWeek = null;
+      // Auto-select today's week when landing on current year+month
+      if (_selectedYear == now.year && _selectedMonth == now.month) {
+        _selectedWeek = _currentWeekNumber(now);
+      } else {
+        _selectedWeek = null;
+      }
       _weekScrollOffset = 0.0;
     });
     _fadeController

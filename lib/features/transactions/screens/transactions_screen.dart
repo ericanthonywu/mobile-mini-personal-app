@@ -106,6 +106,43 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
     return weeks;
   }
 
+  /// Returns the Monday of the week that [date] belongs to.
+  static DateTime _weekStart(DateTime date) {
+    final daysFromMonday = date.weekday - 1; // Monday=1, so offset = weekday - 1
+    return DateTime(date.year, date.month, date.day).subtract(Duration(days: daysFromMonday));
+  }
+
+  /// Builds a human-readable label for the Mon–Sun week that contains [monday].
+  /// Format: "Week N of Mon YYYY" — if the week spans months:
+  /// "28 Jul – 3 Aug 2026"
+  String _weekLabel(DateTime monday) {
+    final sunday = monday.add(const Duration(days: 6));
+
+    // Determine which month the majority of the week belongs to
+    // (or just use Monday's month as the anchor)
+    final sameMonth = monday.month == sunday.month;
+    final sameYear = monday.year == sunday.year;
+
+    if (sameMonth && sameYear) {
+      // Calculate week-of-month index (1-based)
+      final firstDayOfMonth = DateTime(monday.year, monday.month, 1);
+      final firstDow = firstDayOfMonth.weekday; // 1=Mon
+      final daysToMonday = firstDow - 1;
+      final firstMonday = firstDayOfMonth.subtract(Duration(days: daysToMonday));
+      final weekIndex = ((monday.difference(firstMonday).inDays) ~/ 7) + 1;
+      return 'Week $weekIndex of ${_monthNames[monday.month - 1]} ${monday.year}';
+    } else {
+      // Cross-month week
+      final monStr = '${monday.day} ${_monthShortNames[monday.month - 1]}';
+      final sunStr = '${sunday.day} ${_monthShortNames[sunday.month - 1]}';
+      if (sameYear) {
+        return '$monStr – $sunStr ${sunday.year}';
+      } else {
+        return '$monStr ${monday.year} – $sunStr ${sunday.year}';
+      }
+    }
+  }
+
   String _formatWeekRange(DateTime start, DateTime end) {
     final startStr = "${start.day} ${_monthShortNames[start.month - 1]}";
     final endStr = "${end.day} ${_monthShortNames[end.month - 1]}";
@@ -142,6 +179,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
     final now = DateTime.now();
     final currentYear = now.year;
     final currentMonth = now.month;
+
+    // Sync local picker state from the live provider state so the sheet
+    // correctly reflects any filter applied externally (e.g. from dashboard).
+    final providerState = ref.read(transactionProvider);
+    if (providerState.filters.dateFrom != null) {
+      _selectedDateFrom = providerState.filters.dateFrom;
+      _selectedDateTo = providerState.filters.dateTo;
+      _selectedDateLabel = providerState.dateLabel;
+      _tempYear = providerState.filters.dateFrom!.year;
+      _tempMonth = providerState.filters.dateFrom!.month;
+      _tempCustomFrom = providerState.filters.dateFrom;
+      _tempCustomTo = providerState.filters.dateTo;
+    }
 
     showModalBottomSheet(
       context: context,
@@ -682,10 +732,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                           ),
                           const SizedBox(width: 8),
                           _DateFilterChip(
-                            label: _selectedDateLabel ?? 'Date',
-                            isSelected: _selectedDateFrom != null,
+                            label: state.dateLabel ?? 'Date',
+                            isSelected: state.filters.dateFrom != null,
                             onTap: () => _showDateFilterPicker(context),
-                            onClear: _selectedDateFrom != null
+                            onClear: state.filters.dateFrom != null
                                 ? () => _applyDateFilter(null, null, null)
                                 : null,
                           ),
@@ -803,16 +853,35 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
       );
     }
 
+    // ── Build flat list with week-separator markers ─────────────────────────
+    // Only insert separators when sorted by date (makes sense semantically).
+    final bool insertSeparators = state.filters.sortBy == 'date';
+
+    final flatItems = <dynamic>[];
+    DateTime? currentWeekMonday;
+
+    for (final tx in state.transactions) {
+      if (insertSeparators) {
+        final monday = _weekStart(tx.transactionDate);
+        if (currentWeekMonday == null || monday != currentWeekMonday) {
+          currentWeekMonday = monday;
+          flatItems.add(_WeekSeparatorItem(label: _weekLabel(monday)));
+        }
+      }
+      flatItems.add(tx);
+    }
+
+    final hasMore = state.filters.page < state.totalPages;
+
     return RefreshIndicator(
       color: AppColors.primary,
       backgroundColor: AppColors.surface,
       onRefresh: () => ref.read(transactionProvider.notifier).fetch(),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: state.transactions.length + (state.filters.page < state.totalPages ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+        itemCount: flatItems.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == state.transactions.length) {
+          if (index == flatItems.length) {
             // Load more trigger
             ref.read(transactionProvider.notifier).loadMore();
             return const Center(
@@ -823,20 +892,75 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
             );
           }
 
-          final tx = state.transactions[index];
-          return TransactionCard(
-            transaction: tx,
-            showIgnoreSlide: true,
-            showNotes: true,
-            onIgnoreToggle: (isIgnored) {
-              ref.read(transactionProvider.notifier).updateTransaction(
-                tx.id,
-                isIgnored: isIgnored,
-              );
-            },
-            onCategoryTap: () => _showCategoryPicker(context, tx),
-            onAmountTap: () => _showAmountEditor(context, tx),
-            onDelete: () => _confirmDelete(context, tx),
+          final item = flatItems[index];
+
+          // ── Week separator ─────────────────────────────────────────────
+          if (item is _WeekSeparatorItem) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 16, bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Divider(
+                      color: AppColors.border.withValues(alpha: 0.8),
+                      thickness: 1.0,
+                      endIndent: 10,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.border,
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      item.label,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(
+                      color: AppColors.border.withValues(alpha: 0.8),
+                      thickness: 1.0,
+                      indent: 10,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // ── Transaction card ───────────────────────────────────────────
+          final tx = item as TransactionModel;
+
+          // Determine if the previous item was a separator (no top spacing needed)
+          final prevIsSeparator = index > 0 && flatItems[index - 1] is _WeekSeparatorItem;
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: 8, top: prevIsSeparator ? 0 : 0),
+            child: TransactionCard(
+              transaction: tx,
+              showIgnoreSlide: true,
+              showNotes: true,
+              onIgnoreToggle: (isIgnored) {
+                ref.read(transactionProvider.notifier).updateTransaction(
+                  tx.id,
+                  isIgnored: isIgnored,
+                );
+              },
+              onCategoryTap: () => _showCategoryPicker(context, tx),
+              onAmountTap: () => _showAmountEditor(context, tx),
+              onDelete: () => _confirmDelete(context, tx),
+            ),
           );
         },
       ),
@@ -1522,4 +1646,9 @@ class _SortFilterChip extends StatelessWidget {
   }
 }
 
+/// Marker object inserted into the flat transaction list to represent a week divider.
+class _WeekSeparatorItem {
+  final String label;
+  const _WeekSeparatorItem({required this.label});
+}
 

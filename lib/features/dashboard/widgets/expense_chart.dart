@@ -331,7 +331,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                   child: LineChart(
                     LineChartData(
                       minX: 0,
-                      maxX: (days.length - 1).toDouble().clamp(1, double.infinity),
+                      maxX: _isWeekly ? 6.0 : (days.length - 1).toDouble().clamp(1, double.infinity),
                       minY: 0,
                       maxY: maxY,
                       clipData: const FlClipData.all(),
@@ -369,22 +369,32 @@ class _ExpenseChartState extends State<ExpenseChart>
                                 : (days.length / 6).ceilToDouble(),
                             getTitlesWidget: (val, _) {
                               final idx = val.toInt();
-                              if (idx < 0 || idx >= days.length) {
-                                return const SizedBox.shrink();
+                              if (_isWeekly) {
+                                // Always show Mon–Sun labels (0=Mon … 6=Sun)
+                                if (idx < 0 || idx > 6) return const SizedBox.shrink();
+                                const weekdayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                return Text(
+                                  weekdayAbbrs[idx],
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: AppColors.textDisabled,
+                                  ),
+                                );
+                              } else {
+                                if (idx < 0 || idx >= days.length) {
+                                  return const SizedBox.shrink();
+                                }
+                                final dateStr = days[idx].date;
+                                final parts = dateStr.split('-');
+                                if (parts.length < 3) return const SizedBox.shrink();
+                                return Text(
+                                  parts[2],
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: AppColors.textDisabled,
+                                  ),
+                                );
                               }
-                              final dateStr = days[idx].date;
-                              final parts = dateStr.split('-');
-                              if (parts.length < 3) return const SizedBox.shrink();
-                              final label = _isWeekly
-                                  ? _dayAbbr(DateTime.parse(dateStr).weekday)
-                                  : parts[2];
-                              return Text(
-                                label,
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: AppColors.textDisabled,
-                                ),
-                              );
                             },
                           ),
                         ),
@@ -501,12 +511,8 @@ class _ExpenseChartState extends State<ExpenseChart>
       ),
     );
   }
-
-  String _dayAbbr(int weekday) {
-    const abbrs = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return weekday < abbrs.length ? abbrs[weekday] : '';
-  }
 }
+
 
 class _PeriodTab extends StatelessWidget {
   final String label;
