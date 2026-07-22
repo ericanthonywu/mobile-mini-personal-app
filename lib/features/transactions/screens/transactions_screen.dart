@@ -660,16 +660,21 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
         onPressed: () => _showAddTransactionSheet(context),
         child: const Icon(Icons.add),
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, _) => [
-          SliverAppBar(
-            pinned: true,
-            backgroundColor: AppColors.background,
-            scrolledUnderElevation: 0,
-            surfaceTintColor: Colors.transparent,
-            title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(148),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        onRefresh: () => ref.read(transactionProvider.notifier).fetch(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              backgroundColor: AppColors.background,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
+            ),
+            SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Column(
@@ -808,163 +813,163 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                   ),
                 ),
               ),
-            ),
+            ..._buildTransactionSlivers(state),
           ],
-        body: _buildList(state),
+        ),
       ),
     );
   }
 
-  Widget _buildList(TransactionListState state) {
+  List<Widget> _buildTransactionSlivers(TransactionListState state) {
     if (state.isLoading) {
-      return ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: 8,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (_, __) => const SkeletonTransactionTile(),
-      );
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (_, __) => const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: SkeletonTransactionTile(),
+              ),
+              childCount: 8,
+            ),
+          ),
+        ),
+      ];
     }
 
     if (state.error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(state.error!, style: const TextStyle(color: AppColors.error)),
-            TextButton(
-              onPressed: () => ref.read(transactionProvider.notifier).fetch(),
-              child: const Text('Try Again'),
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(state.error!, style: const TextStyle(color: AppColors.error)),
+                TextButton(
+                  onPressed: () => ref.read(transactionProvider.notifier).fetch(),
+                  child: const Text('Try Again'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      );
+      ];
     }
 
     if (state.transactions.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.textDisabled),
-            SizedBox(height: 12),
-            Text('No transactions found', style: TextStyle(color: AppColors.textSecondary)),
-          ],
+      return [
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.textDisabled),
+                SizedBox(height: 12),
+                Text('No transactions found', style: TextStyle(color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
         ),
-      );
+      ];
     }
 
-    // ── Build flat list with week-separator markers ─────────────────────────
-    // Only insert separators when sorted by date (makes sense semantically).
-    final bool insertSeparators = state.filters.sortBy == 'date';
+    // ── Group transactions by Mon–Sun week ─────────────────────────────────
+    final bool groupByWeek = state.filters.sortBy == 'date';
+    final groups = <({String? label, List<TransactionModel> txs})>[];
 
-    final flatItems = <dynamic>[];
-    DateTime? currentWeekMonday;
+    if (!groupByWeek) {
+      groups.add((label: null, txs: state.transactions));
+    } else {
+      DateTime? currentMonday;
+      var currentGroup = <TransactionModel>[];
+      String? currentLabel;
 
-    for (final tx in state.transactions) {
-      if (insertSeparators) {
+      for (final tx in state.transactions) {
         final monday = _weekStart(tx.transactionDate);
-        if (currentWeekMonday == null || monday != currentWeekMonday) {
-          currentWeekMonday = monday;
-          flatItems.add(_WeekSeparatorItem(label: _weekLabel(monday)));
+        if (currentMonday == null || monday != currentMonday) {
+          if (currentGroup.isNotEmpty) {
+            groups.add((label: currentLabel, txs: List.unmodifiable(currentGroup)));
+          }
+          currentMonday = monday;
+          currentLabel = _weekLabel(monday);
+          currentGroup = [tx];
+        } else {
+          currentGroup.add(tx);
         }
       }
-      flatItems.add(tx);
+      if (currentGroup.isNotEmpty) {
+        groups.add((label: currentLabel, txs: List.unmodifiable(currentGroup)));
+      }
     }
 
     final hasMore = state.filters.page < state.totalPages;
+    final slivers = <Widget>[
+      const SliverPadding(padding: EdgeInsets.only(top: 4)),
+    ];
 
-    return RefreshIndicator(
-      color: AppColors.primary,
-      backgroundColor: AppColors.surface,
-      onRefresh: () => ref.read(transactionProvider.notifier).fetch(),
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        itemCount: flatItems.length + (hasMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == flatItems.length) {
-            // Load more trigger
+    for (final group in groups) {
+      final groupSlivers = <Widget>[];
+
+      if (group.label != null) {
+        groupSlivers.add(SliverPersistentHeader(
+          pinned: true,
+          delegate: _WeekStickyHeaderDelegate(label: group.label!),
+        ));
+      }
+
+      groupSlivers.add(SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final tx = group.txs[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TransactionCard(
+                  transaction: tx,
+                  showIgnoreSlide: true,
+                  showNotes: true,
+                  onIgnoreToggle: (isIgnored) {
+                    ref.read(transactionProvider.notifier).updateTransaction(
+                      tx.id,
+                      isIgnored: isIgnored,
+                    );
+                  },
+                  onCategoryTap: () => _showCategoryPicker(context, tx),
+                  onAmountTap: () => _showAmountEditor(context, tx),
+                  onDelete: () => _confirmDelete(context, tx),
+                ),
+              );
+            },
+            childCount: group.txs.length,
+          ),
+        ),
+      ));
+
+      slivers.add(SliverMainAxisGroup(slivers: groupSlivers));
+    }
+
+    if (hasMore) {
+      slivers.add(SliverToBoxAdapter(
+        child: Builder(builder: (context) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
             ref.read(transactionProvider.notifier).loadMore();
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            );
-          }
-
-          final item = flatItems[index];
-
-          // ── Week separator ─────────────────────────────────────────────
-          if (item is _WeekSeparatorItem) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: AppColors.border.withValues(alpha: 0.8),
-                      thickness: 1.0,
-                      endIndent: 10,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.border,
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Text(
-                      item.label,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textSecondary,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: AppColors.border.withValues(alpha: 0.8),
-                      thickness: 1.0,
-                      indent: 10,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // ── Transaction card ───────────────────────────────────────────
-          final tx = item as TransactionModel;
-
-          // Determine if the previous item was a separator (no top spacing needed)
-          final prevIsSeparator = index > 0 && flatItems[index - 1] is _WeekSeparatorItem;
-
-          return Padding(
-            padding: EdgeInsets.only(bottom: 8, top: prevIsSeparator ? 0 : 0),
-            child: TransactionCard(
-              transaction: tx,
-              showIgnoreSlide: true,
-              showNotes: true,
-              onIgnoreToggle: (isIgnored) {
-                ref.read(transactionProvider.notifier).updateTransaction(
-                  tx.id,
-                  isIgnored: isIgnored,
-                );
-              },
-              onCategoryTap: () => _showCategoryPicker(context, tx),
-              onAmountTap: () => _showAmountEditor(context, tx),
-              onDelete: () => _confirmDelete(context, tx),
+          });
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
-        },
-      ),
-    );
+        }),
+      ));
+    }
+
+    slivers.add(const SliverPadding(padding: EdgeInsets.only(bottom: 32)));
+    return slivers;
   }
 
   Future<void> _confirmDelete(BuildContext context, TransactionModel tx) async {
@@ -1646,7 +1651,71 @@ class _SortFilterChip extends StatelessWidget {
   }
 }
 
-/// Marker object inserted into the flat transaction list to represent a week divider.
+/// Delegate for the pinned sticky week header in the transactions sliver list.
+class _WeekStickyHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final String label;
+
+  const _WeekStickyHeaderDelegate({required this.label});
+
+  static const double _height = 40.0;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Divider(
+              color: AppColors.border.withValues(alpha: 0.8),
+              thickness: 1.0,
+              endIndent: 10,
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.border,
+                width: 0.8,
+              ),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Divider(
+              color: AppColors.border.withValues(alpha: 0.8),
+              thickness: 1.0,
+              indent: 10,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_WeekStickyHeaderDelegate old) => old.label != label;
+}
+
+/// Marker object — kept for compatibility, no longer used in the sliver list.
 class _WeekSeparatorItem {
   final String label;
   const _WeekSeparatorItem({required this.label});
