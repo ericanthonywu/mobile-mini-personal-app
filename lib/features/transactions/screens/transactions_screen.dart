@@ -652,6 +652,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
     final state = ref.watch(transactionProvider);
     final categories = ref.watch(categoriesProvider).valueOrNull ?? [];
 
+    final hasDateFilter = state.filters.dateFrom != null || state.filters.dateTo != null;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       floatingActionButton: FloatingActionButton(
@@ -673,98 +675,98 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
               scrolledUnderElevation: 0,
               surfaceTintColor: Colors.transparent,
               title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: Column(
-                  children: [
-                    // Search
-                    TextField(
-                      controller: _searchController,
-                      onChanged: _applySearch,
-                      decoration: InputDecoration(
-                        hintText: 'Search merchant...',
-                        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 18),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  _applySearch('');
-                                },
-                              )
-                            : null,
+              bottom: PreferredSize(
+                preferredSize: Size.fromHeight(hasDateFilter ? 146 : 100),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Column(
+                    children: [
+                      // Search
+                      TextField(
+                        controller: _searchController,
+                        onChanged: _applySearch,
+                        decoration: InputDecoration(
+                          hintText: 'Search merchant...',
+                          prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _applySearch('');
+                                  },
+                                )
+                              : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Filter chips row
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _FilterChip(
-                            label: 'All',
-                            selected: _isIgnoredFilter == null,
-                            onTap: () {
-                              setState(() => _isIgnoredFilter = null);
-                              ref.read(transactionProvider.notifier).applyFilters(
-                                state.filters.copyWith(clearIgnored: true),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          _FilterChip(
-                            label: 'Active',
-                            selected: _isIgnoredFilter == false,
-                            onTap: () {
-                              setState(() => _isIgnoredFilter = false);
-                              ref.read(transactionProvider.notifier).applyFilters(
-                                state.filters.copyWith(isIgnored: false),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          _FilterChip(
-                            label: 'Ignored',
-                            selected: _isIgnoredFilter == true,
-                            onTap: () {
-                              setState(() => _isIgnoredFilter = true);
-                              ref.read(transactionProvider.notifier).applyFilters(
-                                state.filters.copyWith(isIgnored: true),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          _DateFilterChip(
-                            label: state.dateLabel ?? 'Date',
-                            isSelected: state.filters.dateFrom != null,
-                            onTap: () => _showDateFilterPicker(context),
-                            onClear: state.filters.dateFrom != null
-                                ? () => _applyDateFilter(null, null, null)
-                                : null,
-                          ),
-                          const SizedBox(width: 8),
-                          _SortFilterChip(
-                            sortBy: state.filters.sortBy,
-                            sortOrder: state.filters.sortOrder,
-                            onSelected: (sortBy, sortOrder) {
-                              ref.read(transactionProvider.notifier).applyFilters(
-                                state.filters.copyWith(sortBy: sortBy, sortOrder: sortOrder),
-                              );
-                            },
-                          ),
-                          if (categories.isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            _CategoryFilterChip(
-                              categories: categories,
-                              selectedId: _categoryFilter,
-                              onSelected: (id) {
-                                setState(() => _categoryFilter = id);
+                      const SizedBox(height: 8),
+                      // Filter chips row
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _FilterChip(
+                              label: 'All',
+                              selected: _isIgnoredFilter == null,
+                              onTap: () {
+                                setState(() => _isIgnoredFilter = null);
                                 ref.read(transactionProvider.notifier).applyFilters(
-                                  id == null
-                                      ? state.filters.copyWith(clearCategory: true)
-                                      : state.filters.copyWith(categoryId: id),
+                                  state.filters.copyWith(clearIgnored: true),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _FilterChip(
+                              label: 'Active',
+                              selected: _isIgnoredFilter == false,
+                              onTap: () {
+                                setState(() => _isIgnoredFilter = false);
+                                ref.read(transactionProvider.notifier).applyFilters(
+                                  state.filters.copyWith(isIgnored: false),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _FilterChip(
+                              label: 'Ignored',
+                              selected: _isIgnoredFilter == true,
+                              onTap: () {
+                                setState(() => _isIgnoredFilter = true);
+                                ref.read(transactionProvider.notifier).applyFilters(
+                                  state.filters.copyWith(isIgnored: true),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            _DateFilterChip(
+                              label: state.dateLabel ?? 'Date',
+                              isSelected: state.filters.dateFrom != null,
+                              onTap: () => _showDateFilterPicker(context),
+                              onClear: state.filters.dateFrom != null
+                                  ? () => _applyDateFilter(null, null, null)
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            _SortFilterChip(
+                              sortBy: state.filters.sortBy,
+                              sortOrder: state.filters.sortOrder,
+                              onSelected: (sortBy, sortOrder) {
+                                ref.read(transactionProvider.notifier).applyFilters(
+                                  state.filters.copyWith(sortBy: sortBy, sortOrder: sortOrder),
+                                );
+                              },
+                            ),
+                            if (categories.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              _CategoryFilterChip(
+                                categories: categories,
+                                selectedId: _categoryFilter,
+                                onSelected: (id) {
+                                  setState(() => _categoryFilter = id);
+                                  ref.read(transactionProvider.notifier).applyFilters(
+                                    id == null
+                                        ? state.filters.copyWith(clearCategory: true)
+                                        : state.filters.copyWith(categoryId: id),
                                   );
                                 },
                               ),
@@ -772,47 +774,50 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                           ],
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      // Summary Widget
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceVariant,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.receipt_long, size: 14, color: AppColors.textSecondary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${state.total} Transaction(s)',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textSecondary,
+                      if (hasDateFilter) ...[
+                        const SizedBox(height: 10),
+                        // Summary Widget
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.receipt_long, size: 14, color: AppColors.textSecondary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${state.total} Transaction(s)',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              CurrencyFormatter.format(state.totalAmount),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryLight,
+                                ],
                               ),
-                            ),
-                          ],
+                              Text(
+                                CurrencyFormatter.format(state.totalAmount),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryLight,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
               ),
+            ),
             ..._buildTransactionSlivers(state),
           ],
         ),
