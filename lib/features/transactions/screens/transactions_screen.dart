@@ -114,12 +114,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
 
   /// Builds a human-readable label for the Mon–Sun week that contains [monday].
   /// Format: "Week N of Mon YYYY" — if the week spans months:
-  /// "28 Jul – 3 Aug 2026"
+  /// "Week 5 29 Jun – Week 1 5 Jul 2026"
   String _weekLabel(DateTime monday) {
     final sunday = monday.add(const Duration(days: 6));
 
-    // Determine which month the majority of the week belongs to
-    // (or just use Monday's month as the anchor)
     final sameMonth = monday.month == sunday.month;
     final sameYear = monday.year == sunday.year;
 
@@ -132,9 +130,19 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
       final weekIndex = ((monday.difference(firstMonday).inDays) ~/ 7) + 1;
       return 'Week $weekIndex of ${_monthNames[monday.month - 1]} ${monday.year}';
     } else {
-      // Cross-month week
-      final monStr = '${monday.day} ${_monthShortNames[monday.month - 1]}';
-      final sunStr = '${sunday.day} ${_monthShortNames[sunday.month - 1]}';
+      // Cross-month week: compute week index in Monday's month & Sunday's month
+      final firstDayMonMonth = DateTime(monday.year, monday.month, 1);
+      final firstDowMon = firstDayMonMonth.weekday; // 1=Mon
+      final firstMondayMon = firstDayMonMonth.subtract(Duration(days: firstDowMon - 1));
+      final mondayWeekIdx = ((monday.difference(firstMondayMon).inDays) ~/ 7) + 1;
+
+      final firstDaySunMonth = DateTime(sunday.year, sunday.month, 1);
+      final firstDowSun = firstDaySunMonth.weekday; // 1=Mon
+      final firstMondaySun = firstDaySunMonth.subtract(Duration(days: firstDowSun - 1));
+      final sundayWeekIdx = ((monday.difference(firstMondaySun).inDays) ~/ 7) + 1;
+
+      final monStr = 'Week $mondayWeekIdx ${monday.day} ${_monthShortNames[monday.month - 1]}';
+      final sunStr = 'Week $sundayWeekIdx ${sunday.day} ${_monthShortNames[sunday.month - 1]}';
       if (sameYear) {
         return '$monStr – $sunStr ${sunday.year}';
       } else {
