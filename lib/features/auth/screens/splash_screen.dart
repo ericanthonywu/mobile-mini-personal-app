@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/features/auth/providers/auth_provider.dart';
+import 'package:expense_tracker/shared/widgets/app_logo.dart';
 
 /// Flutter-side splash screen shown while [AuthStatus.unknown] is being resolved.
 /// Bridges the native iOS LaunchScreen into the app with a smooth fade transition.
@@ -50,36 +51,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // EA logo — gradient text mimicking the icon
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [
-                      Color(0xFF6C5CE7), // purple
-                      Color(0xFFA29BFE), // lavender
-                      Color(0xFF74B9FF), // sky blue
-                    ],
-                  ).createShader(bounds),
-                  child: const Text(
-                    '<EA/>',
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 64,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white, // masked by shader
-                      letterSpacing: -1,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // App subtitle
-                const Text(
-                  "Eric's Expense Tracker",
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
-                  ),
+                // Redesigned app logo mark & title
+                const AppLogo(
+                  size: 96,
+                  showGlow: true,
+                  showTitle: true,
+                  heroTag: 'app_logo_hero',
                 ),
                 const SizedBox(height: 48),
                 // Subtle loading indicator
@@ -88,7 +65,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   height: 24,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: AppColors.primary.withOpacity(0.6),
+                    color: AppColors.primary.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -98,4 +75,5 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
   }
+
 }

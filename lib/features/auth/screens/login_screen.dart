@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/features/auth/providers/auth_provider.dart';
+import 'package:expense_tracker/shared/widgets/app_logo.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   static const int _pinLength = 6;
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
+
 
   @override
   void initState() {
@@ -101,42 +103,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   Widget _buildHeader() {
-    return Column(
-      children: [
-        // App icon glow
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.15),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
-                blurRadius: 32,
-                spreadRadius: 4,
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.account_balance_wallet_rounded,
-            color: AppColors.primary,
-            size: 40,
-          ),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'Expense Tracker',
-          style: Theme.of(context).textTheme.displaySmall,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Enter PIN to continue',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
+    return const AppLogo(
+      size: 80,
+      showGlow: true,
+      showTitle: true,
+      subtitle: 'Enter PIN to continue',
+      heroTag: 'app_logo_hero',
     );
   }
 
