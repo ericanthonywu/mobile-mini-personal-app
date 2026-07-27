@@ -54,7 +54,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
     final notifier = ref.read(transactionProvider.notifier);
     final currentFilters = ref.read(transactionProvider).filters;
     notifier.applyFilters(
-      currentFilters.copyWith(dateFrom: from, dateTo: to),
+      currentFilters.copyWith(dateFrom: from, dateTo: to, isIgnored: false),
       dateLabel: label,
     );
     context.go('/transactions');
