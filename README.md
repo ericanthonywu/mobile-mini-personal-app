@@ -1,17 +1,33 @@
 # expense_tracker
 
-A new Flutter project.
+Expense Tracker Mobile Application (Flutter).
 
-## Getting Started
+## Environment Setup
 
-This project is a starting point for a Flutter application.
+The mobile app relies on environment variables defined in `.env.json` for API configuration:
 
-A few resources to get you started if this is your first Flutter project:
+```json
+{
+  "BASE_URL": "http://srv1743851.hstgr.cloud:9090/api"
+}
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Running the Application
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Always include `--dart-define-from-file=.env.json` when running or building the application so that `BASE_URL` is properly passed to the app and WidgetKit extension.
+
+### Debug Mode
+```bash
+flutter run --dart-define-from-file=.env.json
+```
+
+### Release Mode (Physical iOS Device)
+```bash
+flutter run -d <device_id> --release --dart-define-from-file=.env.json
+```
+
+### Build iOS Release Bundle
+```bash
+flutter build ios --release --dart-define-from-file=.env.json
+```
+
