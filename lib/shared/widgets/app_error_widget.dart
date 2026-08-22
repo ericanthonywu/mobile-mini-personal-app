@@ -184,6 +184,13 @@ class _ErrorConfig {
           borderColor: AppColors.warning,
           title: 'Request Failed',
         );
+      case ApiErrorType.unauthorized:
+        return const _ErrorConfig(
+          icon: Icons.lock_clock_outlined,
+          iconColor: AppColors.warning,
+          borderColor: AppColors.warning,
+          title: 'Session Expired',
+        );
       case ApiErrorType.unknown:
         return const _ErrorConfig(
           icon: Icons.error_outline_rounded,

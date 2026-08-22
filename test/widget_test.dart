@@ -34,6 +34,6 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify that the login screen loads and contains the prompt text.
-    expect(find.text('Masukkan PIN untuk melanjutkan'), findsOneWidget);
+    expect(find.text('Enter PIN to continue'), findsOneWidget);
   });
 }

@@ -8,6 +8,14 @@ import 'package:expense_tracker/core/utils/widget_service.dart';
 import 'package:expense_tracker/core/utils/notification_service.dart';
 import 'package:expense_tracker/core/utils/background_task.dart';
 import 'package:expense_tracker/core/theme/app_theme.dart';
+import 'package:expense_tracker/features/auth/providers/auth_provider.dart';
+import 'package:expense_tracker/features/budget/providers/budget_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/alert_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/daily_chart_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/daily_summary_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/spending_summary_provider.dart';
+import 'package:expense_tracker/features/transactions/providers/transaction_provider.dart';
+import 'package:expense_tracker/features/categories/providers/category_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,13 +59,30 @@ void main() async {
   });
 }
 
-
-
 class ExpenseTrackerApp extends ConsumerWidget {
   const ExpenseTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Automatically invalidate all data providers when authentication succeeds
+    // (e.g. re-entering PIN after 401 session expiry) so all screens refetch
+    // fresh data immediately without requiring a manual pull-to-refresh.
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (previous?.status != AuthStatus.authenticated &&
+          next.status == AuthStatus.authenticated) {
+        ref.invalidate(budgetProvider);
+        ref.invalidate(recentTransactionsProvider);
+        ref.invalidate(budgetChartProvider);
+        ref.invalidate(dailySummaryProvider);
+        ref.invalidate(alertsProvider);
+        ref.invalidate(dailyChartProvider);
+        ref.invalidate(spendingSummaryProvider);
+        ref.invalidate(transactionProvider);
+        ref.invalidate(categoriesProvider);
+        ref.invalidate(merchantRulesProvider);
+      }
+    });
+
     final router = ref.watch(appRouterProvider);
 
     return Container(

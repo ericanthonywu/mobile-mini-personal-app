@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:expense_tracker/core/config/app_config.dart';
+import 'package:expense_tracker/core/network/api_endpoints.dart';
 import 'package:expense_tracker/core/storage/secure_storage.dart';
 
 // ---------------------------------------------------------------------------
@@ -10,6 +11,7 @@ import 'package:expense_tracker/core/storage/secure_storage.dart';
 enum ApiErrorType {
   connection, // no network / can't reach server
   timeout, // connect or receive timeout
+  unauthorized, // 401 Unauthorized / JWT expired
   serverError, // 5xx from server
   clientError, // 4xx from server
   unknown,
@@ -86,6 +88,16 @@ class ApiClient {
 
   static Dio get instance => _dio;
 
+  /// Global callback triggered on HTTP 401 Unauthorized responses
+  /// from authenticated endpoints (e.g. JWT expired or invalid).
+  static void Function()? onUnauthorized;
+
+  /// Programmatically triggers the unauthorized flow (clears token and notifies listener).
+  static Future<void> handleUnauthorized() async {
+    await SecureStorage.clearToken();
+    onUnauthorized?.call();
+  }
+
   static Dio _buildDio() {
     final dio = Dio(
       BaseOptions(
@@ -109,8 +121,15 @@ class ApiClient {
           }
           handler.next(options);
         },
-        onError: (error, handler) {
-          // Surface clean API errors to the UI
+        onError: (error, handler) async {
+          if (error.response?.statusCode == 401) {
+            final path = error.requestOptions.path;
+            final isLoginEndpoint =
+                path.endsWith(ApiEndpoints.login) || path == ApiEndpoints.login;
+            if (!isLoginEndpoint) {
+              await handleUnauthorized();
+            }
+          }
           handler.next(error);
         },
       ),
@@ -152,6 +171,12 @@ ApiError parseApiError(Object error) {
     }
 
     final statusCode = error.response?.statusCode ?? 0;
+    if (statusCode == 401) {
+      return ApiError(
+        ApiErrorType.unauthorized,
+        serverMessage ?? 'Session expired. Please enter PIN again.',
+      );
+    }
     if (statusCode >= 500) {
       return ApiError(
         ApiErrorType.serverError,

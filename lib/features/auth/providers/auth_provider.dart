@@ -28,14 +28,36 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState()) {
+    ApiClient.onUnauthorized = handleSessionExpired;
     _checkExistingToken();
+  }
+
+  @override
+  void dispose() {
+    if (ApiClient.onUnauthorized == handleSessionExpired) {
+      ApiClient.onUnauthorized = null;
+    }
+    super.dispose();
   }
 
   Future<void> _checkExistingToken() async {
     final hasToken = await SecureStorage.hasToken();
+    if (!mounted) return;
     state = state.copyWith(
       status: hasToken ? AuthStatus.authenticated : AuthStatus.unauthenticated,
     );
+  }
+
+  /// Handles 401 Unauthorized / expired JWT session
+  void handleSessionExpired([String? message]) {
+    SecureStorage.clearToken();
+    if (!mounted) return;
+    if (state.status != AuthStatus.unauthenticated || state.error == null) {
+      state = AuthState(
+        status: AuthStatus.unauthenticated,
+        error: message ?? 'Session expired. Please enter PIN again.',
+      );
+    }
   }
 
   Future<void> login(String pin) async {
@@ -47,8 +69,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       final token = response.data['token'] as String;
       await SecureStorage.setToken(token);
+      if (!mounted) return;
       state = state.copyWith(status: AuthStatus.authenticated, isLoading: false);
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         error: extractApiError(e),
@@ -59,6 +83,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await SecureStorage.clearToken();
+    if (!mounted) return;
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
