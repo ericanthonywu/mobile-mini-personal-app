@@ -76,7 +76,15 @@ class _AlertBannerState extends ConsumerState<AlertBanner>
   @override
   Widget build(BuildContext context) {
     final count = widget.alerts.length;
-    final latestMessage = widget.alerts.isNotEmpty ? widget.alerts.first.message : '';
+    final latestAlert = widget.alerts.isNotEmpty ? widget.alerts.first : null;
+    final latestMessage = latestAlert?.message ?? '';
+    final bannerTitle = count == 1
+        ? (latestAlert?.title.isNotEmpty == true
+            ? latestAlert!.title
+            : 'Perlu perhatian')
+        : (widget.alerts.every((a) => a.type == 'parse_failure')
+            ? '$count email(s) failed to parse'
+            : '$count alert(s) perlu perhatian');
 
     return FadeTransition(
       opacity: _fadeAnim,
@@ -105,7 +113,7 @@ class _AlertBannerState extends ConsumerState<AlertBanner>
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '$count email(s) failed to parse',
+                        bannerTitle,
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(
                               color: AppColors.warning,
                               fontWeight: FontWeight.w700,
