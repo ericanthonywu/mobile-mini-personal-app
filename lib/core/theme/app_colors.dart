@@ -18,18 +18,27 @@ class AppColors {
   static const Color secondary = Color(0xFF00D9FF);
 
   // Semantic
-  static const Color success = Color(0xFF00E676);
-  static const Color warning = Color(0xFFFFB74D);
-  static const Color error = Color(0xFFFF5252);
+  static const Color success = Color(0xFF10B981);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color error = Color(0xFFEF4444);
+
+  // AI & Analytics Accents
+  static const Color aiPurple = Color(0xFF8B5CF6);
+  static const Color aiBlue = Color(0xFF3B82F6);
+  static const Color aiCyan = Color(0xFF06B6D4);
+  static const Color aiGradientStart = Color(0xFF6366F1);
+  static const Color aiGradientEnd = Color(0xFFA855F7);
 
   // Text
-  static const Color textPrimary = Color(0xFFEAEAEA);
-  static const Color textSecondary = Color(0xFF8A8A9A);
-  static const Color textDisabled = Color(0xFF4A4A5A);
+  static const Color textPrimary = Color(0xFFF8FAFC);
+  static const Color textSecondary = Color(0xFF94A3B8);
+  static const Color textDisabled = Color(0xFF64748B);
 
-  // Borders / dividers
-  static const Color border = Color(0xFF2A2A3E);
-  static const Color divider = Color(0xFF1E1E2E);
+  // Borders / dividers / pills
+  static const Color border = Color(0xFF262C40);
+  static const Color divider = Color(0xFF1E2235);
+  static const Color pillBackground = Color(0xFF1A2035);
+  static const Color cardSurface = Color(0xFF131828);
 
   // Category preset colors (user can pick others)
   static const List<Color> categoryPresets = [

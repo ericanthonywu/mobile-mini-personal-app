@@ -22,6 +22,29 @@ class SkeletonBox extends StatefulWidget {
   State<SkeletonBox> createState() => _SkeletonBoxState();
 }
 
+/// Convenience alias matching AppSkeleton naming
+class AppSkeleton extends StatelessWidget {
+  final double? width;
+  final double height;
+  final double borderRadius;
+
+  const AppSkeleton({
+    super.key,
+    this.width,
+    required this.height,
+    this.borderRadius = 8,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SkeletonBox(
+      width: width,
+      height: height,
+      borderRadius: borderRadius,
+    );
+  }
+}
+
 class _SkeletonBoxState extends State<SkeletonBox>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;

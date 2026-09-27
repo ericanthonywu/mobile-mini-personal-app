@@ -34,6 +34,9 @@ class TransactionCard extends StatelessWidget {
   /// If null, the delete action is not shown.
   final VoidCallback? onDelete;
 
+  /// Called when the user wants to categorize this transaction with AI.
+  final VoidCallback? onAiCategorize;
+
   const TransactionCard({
     super.key,
     required this.transaction,
@@ -44,6 +47,7 @@ class TransactionCard extends StatelessWidget {
     this.onAmountTap,
     this.onTap,
     this.onDelete,
+    this.onAiCategorize,
   });
 
   @override
@@ -110,7 +114,7 @@ class TransactionCard extends StatelessWidget {
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isIgnored ? AppColors.border.withOpacity(0.5) : AppColors.border,
+                color: isIgnored ? AppColors.border.withValues(alpha: 0.5) : AppColors.border,
               ),
             ),
             child: Padding(
@@ -122,7 +126,7 @@ class TransactionCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: (category?.colorValue ?? AppColors.textDisabled).withOpacity(0.15),
+                      color: (category?.colorValue ?? AppColors.textDisabled).withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -156,7 +160,7 @@ class TransactionCard extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: (category?.colorValue ?? AppColors.textDisabled).withOpacity(0.15),
+                                  color: (category?.colorValue ?? AppColors.textDisabled).withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -170,6 +174,38 @@ class TransactionCard extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (category == null && onAiCategorize != null) ...[
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: onAiCategorize,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.aiPurple.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: AppColors.aiPurple.withValues(alpha: 0.5),
+                                      width: 0.8,
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.auto_awesome_rounded, size: 10, color: AppColors.aiPurple),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'AI',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.aiPurple,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 6),
                             Text(
                               DateFormatter.relativeWithTime(transaction.transactionDate),

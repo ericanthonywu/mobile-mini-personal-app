@@ -22,12 +22,22 @@ class ApiEndpoints {
   static const String merchantRules = '/merchant-rules';
   static String merchantRuleById(String id) => '/merchant-rules/$id';
 
-  // Budget
+  // Budget & Analytics
   static const String budget = '/budget';
   static const String budgetChart = '/budget/chart';
   static const String budgetDailyChart = '/budget/daily-chart';
   static const String budgetSpendingSummary = '/budget/spending-summary';
   static const String budgetDailySummary = '/budget/daily-summary';
+  static const String categoryBreakdown = '/budget/category-breakdown';
+  static const String aiSummary = '/budget/ai-summary';
+
+  // AI Categorization
+  static String aiCategorize(String id) => '/transactions/$id/ai-categorize';
+  static const String aiCategorizeAll = '/transactions/ai-categorize-all';
+
+  // Notifications
+  static const String notificationTest = '/notifications/test';
+  static const String notificationConfig = '/notifications/config';
 
   // Alerts
   static const String alerts = '/alerts';

@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:expense_tracker/core/config/app_config.dart';
+import 'package:expense_tracker/core/network/api_endpoints.dart';
 import 'package:expense_tracker/core/storage/secure_storage.dart';
 
 /// Handles scheduling the daily 22:00 WIB budget reminder notification.
@@ -13,6 +14,9 @@ import 'package:expense_tracker/core/storage/secure_storage.dart';
 /// from the background task to keep the content fresh.
 class NotificationService {
   NotificationService._();
+
+  static const String ntfyTopic = 'bca_expense_tracker_eric';
+  static const String ntfyServer = 'https://ntfy.sh';
 
   static const int _notificationId = 42; // fixed ID — we replace it each time
   static const String _channelId = 'budget_reminder';
@@ -115,6 +119,71 @@ class NotificationService {
 
   /// Cancel all pending notifications.
   static Future<void> cancelAll() => _plugin.cancelAll();
+
+  // ---------------------------------------------------------------------------
+  // ntfy.sh integration
+  // ---------------------------------------------------------------------------
+
+  /// Send a notification directly to ntfy.sh topic.
+  static Future<bool> sendNtfy({
+    required String title,
+    required String message,
+    List<String> tags = const ['bell'],
+    int priority = 3,
+    String? click,
+  }) async {
+    try {
+      final dio = Dio();
+      final response = await dio.post(
+        ntfyServer,
+        data: {
+          'topic': ntfyTopic,
+          'title': title,
+          'message': message,
+          'priority': priority,
+          'tags': tags,
+          if (click != null) 'click': click,
+        },
+        options: Options(
+          headers: {'Content-Type': 'application/json'},
+          sendTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+        ),
+      );
+      debugPrint('[NotificationService] ntfy push status: ${response.statusCode}');
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[NotificationService] ntfy push failed: $e');
+      return false;
+    }
+  }
+
+  /// Request backend to dispatch a test notification to ntfy.sh.
+  static Future<bool> triggerTestNotification() async {
+    try {
+      final token = await SecureStorage.getToken();
+      final dio = Dio(BaseOptions(
+        baseUrl: AppConfig.baseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 15),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      ));
+
+      final response = await dio.post(ApiEndpoints.notificationTest);
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('[NotificationService] Backend test notification failed, trying direct ntfy: $e');
+      return sendNtfy(
+        title: '🧪 Tes Notifikasi BCA Tracker',
+        message: 'Koneksi ntfy.sh aktif dari aplikasi mobile.',
+        tags: ['white_check_mark', 'bell'],
+      );
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Data fetching — uses plain Dio so it works in background isolates too

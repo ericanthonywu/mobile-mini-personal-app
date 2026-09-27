@@ -94,7 +94,7 @@ class _MainShellState extends State<MainShell>
         onHorizontalDragEnd: (details) {
           final v = details.primaryVelocity ?? 0;
           // Swipe left → next tab
-          if (v < -350 && currentIndex < 3) {
+          if (v < -350 && currentIndex < 4) {
             HapticFeedback.selectionClick();
             _switchTo(currentIndex + 1);
           }
@@ -118,7 +118,8 @@ class _MainShellState extends State<MainShell>
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border, width: 0.8)),
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
@@ -127,8 +128,8 @@ class _MainShellState extends State<MainShell>
           backgroundColor: AppColors.surface,
           selectedItemColor: AppColors.primary,
           unselectedItemColor: AppColors.textSecondary,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
+          selectedFontSize: 11,
+          unselectedFontSize: 11,
           items: [
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 0
@@ -140,19 +141,25 @@ class _MainShellState extends State<MainShell>
               icon: Icon(currentIndex == 1
                   ? Icons.receipt_long_rounded
                   : Icons.receipt_long_outlined),
-              label: 'Transactions',
+              label: 'Transaksi',
             ),
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 2
-                  ? Icons.label_rounded
-                  : Icons.label_outline_rounded),
-              label: 'Categories',
+                  ? Icons.donut_large_rounded
+                  : Icons.donut_large_outlined),
+              label: 'Breakdown',
             ),
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 3
+                  ? Icons.label_rounded
+                  : Icons.label_outline_rounded),
+              label: 'Kategori',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(currentIndex == 4
                   ? Icons.pie_chart_rounded
                   : Icons.pie_chart_outline_rounded),
-              label: 'Budget',
+              label: 'Anggaran',
             ),
           ],
         ),

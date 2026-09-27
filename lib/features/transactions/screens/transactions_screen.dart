@@ -6,6 +6,7 @@ import 'package:expense_tracker/core/utils/currency_formatter.dart';
 import 'package:expense_tracker/features/transactions/providers/transaction_provider.dart';
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
 import 'package:expense_tracker/features/categories/providers/category_provider.dart';
+import 'package:expense_tracker/features/breakdown/providers/breakdown_provider.dart';
 import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
 import 'package:expense_tracker/shared/widgets/transaction_card.dart';
 
@@ -681,8 +682,25 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
               pinned: true,
               backgroundColor: AppColors.background,
               scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
               title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
+              actions: [
+                IconButton(
+                  tooltip: 'Auto-kategorikan dengan AI',
+                  icon: const Icon(Icons.auto_awesome_rounded, color: AppColors.aiPurple),
+                  onPressed: () async {
+                    HapticFeedback.mediumImpact();
+                    final count = await ref.read(aiCategorizationProvider.notifier).categorizeAll();
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('✨ Berhasil mengkategorikan $count transaksi dengan AI!'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+              ],
               bottom: PreferredSize(
                 preferredSize: Size.fromHeight(hasDateFilter ? 146 : 100),
                 child: Padding(
@@ -954,6 +972,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                   onCategoryTap: () => _showCategoryPicker(context, tx),
                   onAmountTap: () => _showAmountEditor(context, tx),
                   onDelete: () => _confirmDelete(context, tx),
+                  onAiCategorize: tx.category == null
+                      ? () async {
+                          HapticFeedback.lightImpact();
+                          final ok = await ref
+                              .read(aiCategorizationProvider.notifier)
+                              .categorizeSingle(tx.id);
+                          if (ok && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('✨ Berhasil mengkategorikan transaksi dengan AI!'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          }
+                        }
+                      : null,
                 ),
               );
             },

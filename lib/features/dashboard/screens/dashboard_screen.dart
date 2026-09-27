@@ -19,6 +19,8 @@ import 'package:expense_tracker/features/dashboard/widgets/alert_banner.dart';
 import 'package:expense_tracker/shared/widgets/app_skeleton.dart';
 import 'package:expense_tracker/features/dashboard/providers/daily_chart_provider.dart';
 import 'package:expense_tracker/features/dashboard/providers/spending_summary_provider.dart';
+import 'package:expense_tracker/features/breakdown/providers/breakdown_provider.dart';
+import 'package:expense_tracker/core/utils/notification_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -188,6 +190,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
                   ),
                   const SizedBox(height: 20),
 
+                  // AI Financial Health & Category Breakdown Preview Card
+                  _buildAiCategoryBreakdownCard(context, ref),
+                  const SizedBox(height: 20),
+
                   // Cumulative expense line chart
                   chartAsync.when(
                     loading: () => const SkeletonBox(height: 280, borderRadius: 16),
@@ -348,6 +354,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
               shape: BoxShape.circle,
               border: Border.all(color: AppColors.border),
             ),
+            child: const Icon(Icons.notifications_active_outlined, color: AppColors.primaryLight, size: 18),
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            _showNtfyDialog(context);
+          },
+          tooltip: 'Notifikasi ntfy.sh',
+        ),
+        IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
+            ),
             child: const Icon(Icons.logout_rounded, color: AppColors.textSecondary, size: 18),
           ),
           onPressed: () {
@@ -358,6 +380,276 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         ),
         const SizedBox(width: 8),
       ],
+    );
+  }
+
+  void _showNtfyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.notifications_active_rounded,
+                  color: AppColors.primaryLight, size: 22),
+              SizedBox(width: 10),
+              Text(
+                'Notifikasi ntfy.sh',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Setiap transaksi BCA baru yang tercatat dari email otomatis dikirimkan ke ntfy.sh.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Topic Langganan:',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    ),
+                    SizedBox(height: 4),
+                    SelectableText(
+                      'bca_expense_tracker_eric',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'URL: https://ntfy.sh/bca_expense_tracker_eric',
+                      style: TextStyle(fontSize: 11, color: AppColors.textDisabled),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Tutup'),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.send_rounded, size: 14),
+              label: const Text('Kirim Tes'),
+              onPressed: () async {
+                HapticFeedback.lightImpact();
+                Navigator.pop(ctx);
+                final sent = await NotificationService.triggerTestNotification();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(sent
+                          ? '🔔 Tes notifikasi terkirim ke ntfy.sh!'
+                          : '⚠️ Gagal mengirim tes notifikasi'),
+                      backgroundColor: sent ? AppColors.success : AppColors.error,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAiCategoryBreakdownCard(BuildContext context, WidgetRef ref) {
+    final breakdownAsync = ref.watch(categoryBreakdownProvider('month'));
+    final aiSummaryAsync = ref.watch(aiSummaryProvider('month'));
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.aiPurple.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.aiPurple.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.aiPurple.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded,
+                        size: 16, color: AppColors.aiPurple),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'AI & Kategori Pengeluaran',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              aiSummaryAsync.maybeWhen(
+                data: (resp) {
+                  final (color, text) = switch (resp.ai.healthScore) {
+                    'critical' => (AppColors.error, 'Waspada'),
+                    'caution' => (AppColors.warning, 'Perhatian'),
+                    _ => (AppColors.success, 'Sehat'),
+                  };
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: color, width: 0.8),
+                    ),
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  );
+                },
+                orElse: () => const SizedBox.shrink(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          breakdownAsync.when(
+            loading: () => const AppSkeleton(height: 60, borderRadius: 10),
+            error: (_, __) => const Text(
+              'Buka detail breakdown untuk analisis lengkap.',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            data: (data) {
+              if (data.categories.isEmpty) {
+                return const Text(
+                  'Belum ada transaksi pada bulan ini.',
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                );
+              }
+              final topCategories = data.categories.take(3).toList();
+              return Column(
+                children: [
+                  ...topCategories.map((c) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: c.color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                c.categoryName,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${c.percentage}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: c.color,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              CurrencyFormatter.compact(c.totalAmount),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              context.go('/breakdown');
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Lihat Detail Breakdown & AI Summary',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primaryLight,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: AppColors.primaryLight),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
