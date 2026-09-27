@@ -39,10 +39,10 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Column(
+        title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Breakdown Pengeluaran',
               style: TextStyle(
                 fontSize: 18,
@@ -530,12 +530,12 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
             border: Border.all(color: AppColors.border),
           ),
           alignment: Alignment.center,
-          child: Column(
+          child: const Column(
             children: [
               Icon(Icons.pie_chart_outline_rounded,
                   size: 48, color: AppColors.textDisabled),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12),
+              Text(
                 'Belum ada transaksi pada periode ini',
                 style: TextStyle(
                   fontSize: 14,
@@ -543,8 +543,8 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
+              SizedBox(height: 4),
+              Text(
                 'Transaksi BCA yang tercatat akan otomatis dikelompokkan ke dalam kategori.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
@@ -599,68 +599,79 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.warning.withValues(alpha: 0.6)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.help_outline_rounded,
-                color: AppColors.warning, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${data.uncategorizedCount} Transaksi Tanpa Kategori',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Total: ${CurrencyFormatter.format(data.uncategorizedSpent)}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.warning,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                child: const Icon(Icons.help_outline_rounded,
+                    color: AppColors.warning, size: 20),
               ),
-            ),
-            onPressed: aiState.isCategorizing
-                ? null
-                : () => _handleAiCategorizeAll(context),
-            icon: aiState.isCategorizing
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.black,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${data.uncategorizedCount} Transaksi Tanpa Kategori',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
-                  )
-                : const Icon(Icons.auto_awesome_rounded, size: 14),
-            label: const Text(
-              'AI Auto',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Total: ${CurrencyFormatter.format(data.uncategorizedSpent)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warning,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onPressed: aiState.isCategorizing
+                  ? null
+                  : () => _handleAiCategorizeAll(context),
+              icon: aiState.isCategorizing
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.black,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome_rounded, size: 16),
+              label: Text(
+                aiState.isCategorizing
+                    ? 'Mengkategorikan...'
+                    : 'Kategorikan Otomatis dengan AI',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ],
@@ -689,9 +700,9 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Distribusi Pengeluaran',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
@@ -1012,12 +1023,12 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.storefront_rounded,
+              Icon(Icons.storefront_rounded,
                   color: AppColors.secondary, size: 18),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'Top Merchant Pengeluaran',
                 style: TextStyle(
                   fontSize: 15,
