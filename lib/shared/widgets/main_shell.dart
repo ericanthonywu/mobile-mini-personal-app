@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 
-/// Main scaffold with smooth animated swipe between the 4 nav tabs.
+/// Main scaffold with smooth animated swipe between the 3 nav tabs.
 ///
 /// Uses [StatefulShellRoute.indexedStack] for routing (reliable state
 /// preservation). Swipe and tap transitions are handled with a slide + fade
@@ -93,8 +93,8 @@ class _MainShellState extends State<MainShell>
         behavior: HitTestBehavior.translucent,
         onHorizontalDragEnd: (details) {
           final v = details.primaryVelocity ?? 0;
-          // Swipe left → next tab
-          if (v < -350 && currentIndex < 4) {
+          // Swipe left → next tab (0 to 2)
+          if (v < -350 && currentIndex < 2) {
             HapticFeedback.selectionClick();
             _switchTo(currentIndex + 1);
           }
@@ -148,18 +148,6 @@ class _MainShellState extends State<MainShell>
                   ? Icons.donut_large_rounded
                   : Icons.donut_large_outlined),
               label: 'Breakdown',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(currentIndex == 3
-                  ? Icons.label_rounded
-                  : Icons.label_outline_rounded),
-              label: 'Kategori',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(currentIndex == 4
-                  ? Icons.pie_chart_rounded
-                  : Icons.pie_chart_outline_rounded),
-              label: 'Anggaran',
             ),
           ],
         ),

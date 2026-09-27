@@ -16,11 +16,6 @@ class ApiEndpoints {
 
   // Categories
   static const String categories = '/categories';
-  static String categoryById(String id) => '/categories/$id';
-
-  // Merchant rules
-  static const String merchantRules = '/merchant-rules';
-  static String merchantRuleById(String id) => '/merchant-rules/$id';
 
   // Budget & Analytics
   static const String budget = '/budget';

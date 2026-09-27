@@ -79,7 +79,6 @@ class ExpenseTrackerApp extends ConsumerWidget {
         ref.invalidate(spendingSummaryProvider);
         ref.invalidate(transactionProvider);
         ref.invalidate(categoriesProvider);
-        ref.invalidate(merchantRulesProvider);
       }
     });
 
