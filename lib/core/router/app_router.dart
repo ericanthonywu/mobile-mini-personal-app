@@ -6,6 +6,7 @@ import 'package:expense_tracker/features/auth/screens/splash_screen.dart';
 import 'package:expense_tracker/features/dashboard/screens/dashboard_screen.dart';
 import 'package:expense_tracker/features/transactions/screens/transactions_screen.dart';
 import 'package:expense_tracker/features/breakdown/screens/breakdown_screen.dart';
+import 'package:expense_tracker/features/breakdown/screens/ai_advisor_chat_screen.dart';
 import 'package:expense_tracker/features/categories/screens/categories_screen.dart';
 import 'package:expense_tracker/features/budget/screens/budget_screen.dart';
 import 'package:expense_tracker/shared/widgets/main_shell.dart';
@@ -42,6 +43,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/ai-advisor-chat',
+        builder: (context, state) {
+          final initialQuestion = state.extra as String?;
+          return AiAdvisorChatScreen(initialQuestion: initialQuestion);
+        },
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

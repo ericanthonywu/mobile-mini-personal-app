@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/core/utils/currency_formatter.dart';
@@ -508,9 +509,109 @@ class _BreakdownScreenState extends ConsumerState<BreakdownScreen> {
                   ),
                 ),
               ],
+
+              const SizedBox(height: 12),
+
+              // Interactive Consultation / Reply CTA Bar
+              InkWell(
+                onTap: () => context.push('/ai-advisor-chat'),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: AppColors.pillBackground,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.primaryLight.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.25),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 13,
+                          color: AppColors.primaryLight,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Tanya / Reply AI Financial Advisor...',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primaryLight,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 11,
+                        color: AppColors.primaryLight,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Quick question suggestion chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildAdvisorQuickChip(
+                      '💡 Cara hemat Food?',
+                      'Bagaimana cara menghemat pengeluaran kategori Food bulan ini?',
+                    ),
+                    const SizedBox(width: 6),
+                    _buildAdvisorQuickChip(
+                      '📊 Evaluasi Budget',
+                      'Apakah pengeluaran saya bulan ini masih dalam batas aman budget?',
+                    ),
+                    const SizedBox(width: 6),
+                    _buildAdvisorQuickChip(
+                      '🔍 Merchant Terboros',
+                      'Merchant apa yang pengeluarannya paling besar dan sering?',
+                    ),
+                  ],
+                ),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAdvisorQuickChip(String label, String question) {
+    return InkWell(
+      onTap: () => context.push('/ai-advisor-chat', extra: question),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border, width: 0.7),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }

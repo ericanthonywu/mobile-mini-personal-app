@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:expense_tracker/features/breakdown/models/breakdown_model.dart';
 import 'package:expense_tracker/features/breakdown/models/ai_summary_model.dart';
+import 'package:expense_tracker/features/breakdown/models/ai_advisor_chat_model.dart';
 import 'package:expense_tracker/core/utils/notification_service.dart';
 
 void main() {
@@ -90,6 +91,47 @@ void main() {
     test('NotificationService has valid ntfy configuration', () {
       expect(NotificationService.ntfyTopic, isNotEmpty);
       expect(NotificationService.ntfyServer, contains('ntfy.sh'));
+    });
+
+    test('ChatMessage and AiAdvisorChatResponse serialize and parse correctly', () {
+      final chatJson = {
+        'reply': 'Pengeluaran Food Anda mencapai 60% bulan ini.',
+        'suggestions': [
+          'Bagaimana cara hemat kategori Food?',
+          'Berapa sisa budget bulanan?',
+        ],
+        'timestamp': '2026-09-27T17:00:00.000Z',
+      };
+
+      final response = AiAdvisorChatResponse.fromJson(chatJson);
+      expect(response.reply, contains('Pengeluaran Food'));
+      expect(response.suggestions.length, 2);
+      expect(response.suggestions[0], contains('Food'));
+
+      final message = ChatMessage(
+        id: 'msg-1',
+        role: 'user',
+        content: 'Berapa sisa budget saya?',
+        timestamp: DateTime(2026, 9, 27, 17, 0),
+      );
+
+      expect(message.isUser, isTrue);
+      expect(message.isAssistant, isFalse);
+
+      final messageJson = message.toJson();
+      expect(messageJson['role'], 'user');
+      expect(messageJson['content'], 'Berapa sisa budget saya?');
+
+      final assistantMsg = ChatMessage(
+        id: 'msg-2',
+        role: 'assistant',
+        content: response.reply,
+        suggestions: response.suggestions,
+        timestamp: response.timestamp,
+      );
+
+      expect(assistantMsg.isAssistant, isTrue);
+      expect(assistantMsg.suggestions.length, 2);
     });
   });
 }

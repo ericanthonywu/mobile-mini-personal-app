@@ -30,6 +30,7 @@ class ApiEndpoints {
   static const String budgetDailySummary = '/budget/daily-summary';
   static const String categoryBreakdown = '/budget/category-breakdown';
   static const String aiSummary = '/budget/ai-summary';
+  static const String aiAdvisorChat = '/budget/ai-advisor/chat';
 
   // AI Categorization
   static String aiCategorize(String id) => '/transactions/$id/ai-categorize';
