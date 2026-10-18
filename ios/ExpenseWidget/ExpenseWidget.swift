@@ -50,12 +50,14 @@ struct BudgetPeriod: Codable {
 struct BudgetSummary: Codable {
     let week: BudgetPeriod
     let month: BudgetPeriod
+    let creditCard: BudgetPeriod?
 }
 
 struct WidgetEntry: TimelineEntry {
     let date: Date
     let week: BudgetPeriod?
     let month: BudgetPeriod?
+    let creditCard: BudgetPeriod?
     let error: String?
     /// Number of unresolved parse-failure alerts — drives the orange badge on home screen widgets.
     let alertCount: Int
@@ -65,6 +67,7 @@ struct WidgetEntry: TimelineEntry {
             date: Date(),
             week: BudgetPeriod(budget: 2_000_000, realSpent: 850_000, remaining: 1_150_000, percentUsed: 42, isOverBudget: false),
             month: BudgetPeriod(budget: 8_000_000, realSpent: 4_200_000, remaining: 3_800_000, percentUsed: 52, isOverBudget: false),
+            creditCard: BudgetPeriod(budget: 8_000_000, realSpent: 2_540_000, remaining: 5_460_000, percentUsed: 31, isOverBudget: false),
             error: nil,
             alertCount: 0
         )
@@ -235,9 +238,9 @@ struct BudgetTimelineProvider: TimelineProvider {
         guard let token = KeychainHelper.readToken() else {
             let (cachedSummary, cachedAlerts) = CacheHelper.loadCache()
             if let cachedSummary = cachedSummary {
-                return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, error: nil, alertCount: cachedAlerts)
+                return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, creditCard: cachedSummary.creditCard, error: nil, alertCount: cachedAlerts)
             }
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Please log into the app", alertCount: 0)
+            return WidgetEntry(date: Date(), week: nil, month: nil, creditCard: nil, error: "Please log into the app", alertCount: 0)
         }
         do {
             // Fetch budget and alert count concurrently
@@ -248,13 +251,13 @@ struct BudgetTimelineProvider: TimelineProvider {
             // Persist to App Group UserDefaults cache
             CacheHelper.saveCache(summary: summary, alertCount: alertCount)
 
-            return WidgetEntry(date: Date(), week: summary.week, month: summary.month, error: nil, alertCount: alertCount)
+            return WidgetEntry(date: Date(), week: summary.week, month: summary.month, creditCard: summary.creditCard, error: nil, alertCount: alertCount)
         } catch {
             let (cachedSummary, cachedAlerts) = CacheHelper.loadCache()
             if let cachedSummary = cachedSummary {
-                return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, error: nil, alertCount: cachedAlerts)
+                return WidgetEntry(date: Date(), week: cachedSummary.week, month: cachedSummary.month, creditCard: cachedSummary.creditCard, error: nil, alertCount: cachedAlerts)
             }
-            return WidgetEntry(date: Date(), week: nil, month: nil, error: "Failed to update data", alertCount: 0)
+            return WidgetEntry(date: Date(), week: nil, month: nil, creditCard: nil, error: "Failed to update data", alertCount: 0)
         }
     }
 }
@@ -414,12 +417,67 @@ struct SmallWidgetView: View {
                     }
                     RefreshButton()
                 }
-                Spacer()
+
+                Spacer(minLength: 4)
+
+                // Weekly spending overview
                 if let week = entry.week {
-                    PeriodSection(label: "This Week", period: week)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack {
+                            Text("This Week")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                                .tracking(0.3)
+                            Spacer()
+                            Text("\(week.percentUsed)%")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(periodColor(week))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1.5)
+                                .background(periodColor(week).opacity(0.15), in: Capsule())
+                        }
+
+                        Text(week.realSpent.rupiah)
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .foregroundStyle(periodColor(week))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+
+                        ProgressView(value: min(Double(week.percentUsed) / 100.0, 1.0))
+                            .tint(periodColor(week))
+                            .scaleEffect(x: 1, y: 1.4, anchor: .center)
+
+                        Text(week.isOverBudget
+                             ? "Over \( (week.realSpent - week.budget).rupiahCompact )"
+                             : "\(week.remaining.rupiahCompact) left")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(periodColor(week).opacity(0.85))
+                    }
+                }
+
+                // Compact CC Bill bar at the bottom
+                if let cc = entry.creditCard {
+                    Spacer(minLength: 6)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "creditcard.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(periodColor(cc))
+                        Text("CC Bill")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(cc.realSpent.rupiahCompact)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(periodColor(cc))
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(Color.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 7))
                 }
             }
-            .padding(14)
+            .padding(13)
         }
     }
 }
@@ -478,9 +536,24 @@ struct MediumWidgetView: View {
                     .padding(.vertical, 4)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(shortDate)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    HStack {
+                        Text(shortDate)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                        if let cc = entry.creditCard {
+                            HStack(spacing: 3) {
+                                Image(systemName: "creditcard.fill")
+                                    .font(.system(size: 8))
+                                Text("CC \(cc.realSpent.rupiahCompact)")
+                                    .font(.system(size: 8, weight: .bold))
+                            }
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.12), in: Capsule())
+                        }
+                    }
                     Spacer()
                     if let month = entry.month {
                         PeriodSection(label: "This Month", period: month)
@@ -544,6 +617,11 @@ struct LargeWidgetView: View {
                     PeriodSection(label: "This Month", period: month)
                 }
 
+                if let cc = entry.creditCard {
+                    Divider()
+                    PeriodSection(label: "CC Bill (4th – 3rd)", period: cc)
+                }
+
                 Spacer()
 
                 // Last updated
@@ -599,7 +677,17 @@ struct LockScreenRectangularView: View {
                         .minimumScaleFactor(0.7)
                 }
 
-                if let month = entry.month {
+                if let cc = entry.creditCard {
+                    HStack {
+                        Text("CC Bill:")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                        Text("\(cc.realSpent.rupiahCompact) / \(cc.budget.rupiahCompact)")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                } else if let month = entry.month {
                     HStack {
                         Text("This month:")
                             .font(.system(size: 11, weight: .medium))

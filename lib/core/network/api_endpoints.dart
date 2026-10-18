@@ -13,6 +13,9 @@ class ApiEndpoints {
   static const String transactions = '/transactions';
   static const String transactionsRecent = '/transactions/recent';
   static String transactionById(String id) => '/transactions/$id';
+  static String transactionSplits(String transactionId) => '/transactions/$transactionId/splits';
+  static String transactionSplitById(String transactionId, String splitId) =>
+      '/transactions/$transactionId/splits/$splitId';
 
   // Categories
   static const String categories = '/categories';
@@ -26,6 +29,7 @@ class ApiEndpoints {
   static const String categoryBreakdown = '/budget/category-breakdown';
   static const String aiSummary = '/budget/ai-summary';
   static const String aiAdvisorChat = '/budget/ai-advisor/chat';
+  static const String budgetCalendar = '/budget/calendar';
 
   // AI Categorization
   static String aiCategorize(String id) => '/transactions/$id/ai-categorize';

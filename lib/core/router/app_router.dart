@@ -7,6 +7,7 @@ import 'package:expense_tracker/features/dashboard/screens/dashboard_screen.dart
 import 'package:expense_tracker/features/transactions/screens/transactions_screen.dart';
 import 'package:expense_tracker/features/breakdown/screens/breakdown_screen.dart';
 import 'package:expense_tracker/features/breakdown/screens/ai_advisor_chat_screen.dart';
+import 'package:expense_tracker/features/calendar/screens/calendar_screen.dart';
 import 'package:expense_tracker/shared/widgets/main_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -48,6 +49,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final initialQuestion = state.extra as String?;
           return AiAdvisorChatScreen(initialQuestion: initialQuestion);
         },
+      ),
+      GoRoute(
+        path: '/calendar',
+        builder: (_, __) => const CalendarScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

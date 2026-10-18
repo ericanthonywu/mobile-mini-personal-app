@@ -2,6 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:expense_tracker/core/network/api_client.dart';
 import 'package:expense_tracker/core/network/api_endpoints.dart';
 import 'package:expense_tracker/features/transactions/models/transaction_model.dart';
+import 'package:expense_tracker/features/budget/providers/budget_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/daily_summary_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/daily_chart_provider.dart';
+import 'package:expense_tracker/features/dashboard/providers/spending_summary_provider.dart';
 
 /// Filters for the transaction list
 class TransactionFilters {
@@ -121,7 +125,9 @@ class TransactionListState {
 }
 
 class TransactionNotifier extends StateNotifier<TransactionListState> {
-  TransactionNotifier() : super(const TransactionListState()) {
+  final Ref? _ref;
+
+  TransactionNotifier([this._ref]) : super(const TransactionListState()) {
     fetch();
   }
 
@@ -306,11 +312,113 @@ class TransactionNotifier extends StateNotifier<TransactionListState> {
       state = state.copyWith(error: extractApiError(e));
     }
   }
+
+  /// Adds a split payment to a transaction.
+  /// Returns null on success, or an error message on failure.
+  Future<String?> addSplit(
+    String transactionId, {
+    required int amount,
+    required String paidBy,
+    String? notes,
+  }) async {
+    try {
+      final response = await ApiClient.instance.post(
+        ApiEndpoints.transactionSplits(transactionId),
+        data: {
+          'amount': amount,
+          'paidBy': paidBy,
+          if (notes != null && notes.isNotEmpty) 'notes': notes,
+        },
+      );
+      final updatedTx = TransactionModel.fromJson(response.data as Map<String, dynamic>);
+      _replaceTransaction(updatedTx);
+      _invalidateOtherProviders();
+      return null;
+    } catch (e) {
+      final err = extractApiError(e);
+      state = state.copyWith(error: err);
+      return err;
+    }
+  }
+
+  /// Updates an existing split payment on a transaction.
+  /// Returns null on success, or an error message on failure.
+  Future<String?> updateSplit(
+    String transactionId,
+    String splitId, {
+    int? amount,
+    String? paidBy,
+    String? notes,
+  }) async {
+    try {
+      final response = await ApiClient.instance.patch(
+        ApiEndpoints.transactionSplitById(transactionId, splitId),
+        data: {
+          if (amount != null) 'amount': amount,
+          if (paidBy != null) 'paidBy': paidBy,
+          if (notes != null) 'notes': notes,
+        },
+      );
+      final updatedTx = TransactionModel.fromJson(response.data as Map<String, dynamic>);
+      _replaceTransaction(updatedTx);
+      _invalidateOtherProviders();
+      return null;
+    } catch (e) {
+      final err = extractApiError(e);
+      state = state.copyWith(error: err);
+      return err;
+    }
+  }
+
+  /// Deletes a split payment from a transaction.
+  /// Returns null on success, or an error message on failure.
+  Future<String?> deleteSplit(String transactionId, String splitId) async {
+    try {
+      final response = await ApiClient.instance.delete(
+        ApiEndpoints.transactionSplitById(transactionId, splitId),
+      );
+      final updatedTx = TransactionModel.fromJson(response.data as Map<String, dynamic>);
+      _replaceTransaction(updatedTx);
+      _invalidateOtherProviders();
+      return null;
+    } catch (e) {
+      final err = extractApiError(e);
+      state = state.copyWith(error: err);
+      return err;
+    }
+  }
+
+  void _replaceTransaction(TransactionModel updatedTx) {
+    int netDiff = 0;
+    final updatedList = state.transactions.map((tx) {
+      if (tx.id != updatedTx.id) return tx;
+      if (!tx.isIgnored) {
+        netDiff = updatedTx.netAmount - tx.netAmount;
+      }
+      return updatedTx;
+    }).toList();
+
+    state = state.copyWith(
+      transactions: updatedList,
+      totalAmount: state.totalAmount + netDiff,
+    );
+  }
+
+  void _invalidateOtherProviders() {
+    if (_ref != null) {
+      _ref!.invalidate(recentTransactionsProvider);
+      _ref!.invalidate(budgetProvider);
+      _ref!.invalidate(budgetChartProvider);
+      _ref!.invalidate(dailySummaryProvider);
+      _ref!.invalidate(dailyChartProvider);
+      _ref!.invalidate(spendingSummaryProvider);
+    }
+  }
 }
 
 final transactionProvider =
     StateNotifierProvider<TransactionNotifier, TransactionListState>(
-  (_) => TransactionNotifier(),
+  (ref) => TransactionNotifier(ref),
 );
 
 /// Recent transactions for dashboard

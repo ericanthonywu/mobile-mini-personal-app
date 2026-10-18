@@ -22,7 +22,14 @@ class ExpenseChart extends StatefulWidget {
 
 class _ExpenseChartState extends State<ExpenseChart>
     with TickerProviderStateMixin {
-  bool _isWeekly = true;
+  /// 0 = Week, 1 = Month, 2 = CC Bill
+  int _selectedPeriodIndex = 0;
+
+  ChartPeriod get _currentPeriod {
+    if (_selectedPeriodIndex == 0) return widget.chart.weekly;
+    if (_selectedPeriodIndex == 1) return widget.chart.monthly;
+    return widget.chart.creditCard ?? widget.chart.monthly;
+  }
 
   // Fade animation for chart period switch
   late final AnimationController _fadeController;
@@ -64,10 +71,10 @@ class _ExpenseChartState extends State<ExpenseChart>
     super.dispose();
   }
 
-  void _switchPeriod(bool weekly) {
-    if (_isWeekly == weekly) return;
+  void _switchPeriod(int index) {
+    if (_selectedPeriodIndex == index) return;
     HapticFeedback.selectionClick();
-    setState(() => _isWeekly = weekly);
+    setState(() => _selectedPeriodIndex = index);
     _fadeController
       ..reset()
       ..forward();
@@ -84,7 +91,8 @@ class _ExpenseChartState extends State<ExpenseChart>
 
   @override
   Widget build(BuildContext context) {
-    final period = _isWeekly ? widget.chart.weekly : widget.chart.monthly;
+    final period = _currentPeriod;
+    final isWeekly = _selectedPeriodIndex == 0;
     final days = period.days;
     final budget = period.budget;
 
@@ -131,7 +139,9 @@ class _ExpenseChartState extends State<ExpenseChart>
 
     // Date range subtitle
     String periodSubtitle = '';
-    if (days.isNotEmpty) {
+    if (_selectedPeriodIndex == 2 && period.cycleLabel != null && period.cycleLabel!.isNotEmpty) {
+      periodSubtitle = 'Cycle: ${period.cycleLabel!}';
+    } else if (days.isNotEmpty) {
       final first = DateTime.tryParse(days.first.date);
       final last = DateTime.tryParse(days.last.date);
       if (first != null && last != null) {
@@ -211,7 +221,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                   ),
                 ],
               ),
-              // Period toggle
+              // Period toggle (Week, Month, CC Bill)
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant,
@@ -222,13 +232,18 @@ class _ExpenseChartState extends State<ExpenseChart>
                   children: [
                     _PeriodTab(
                       label: 'Week',
-                      selected: _isWeekly,
-                      onTap: () => _switchPeriod(true),
+                      selected: _selectedPeriodIndex == 0,
+                      onTap: () => _switchPeriod(0),
                     ),
                     _PeriodTab(
                       label: 'Month',
-                      selected: !_isWeekly,
-                      onTap: () => _switchPeriod(false),
+                      selected: _selectedPeriodIndex == 1,
+                      onTap: () => _switchPeriod(1),
+                    ),
+                    _PeriodTab(
+                      label: 'CC Bill',
+                      selected: _selectedPeriodIndex == 2,
+                      onTap: () => _switchPeriod(2),
                     ),
                   ],
                 ),
@@ -331,7 +346,7 @@ class _ExpenseChartState extends State<ExpenseChart>
                   child: LineChart(
                     LineChartData(
                       minX: 0,
-                      maxX: _isWeekly ? 6.0 : (days.length - 1).toDouble().clamp(1, double.infinity),
+                      maxX: isWeekly ? 6.0 : (days.length - 1).toDouble().clamp(1, double.infinity),
                       minY: 0,
                       maxY: maxY,
                       clipData: const FlClipData.all(),
@@ -364,12 +379,12 @@ class _ExpenseChartState extends State<ExpenseChart>
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 24,
-                            interval: _isWeekly
+                            interval: isWeekly
                                 ? 1
                                 : (days.length / 6).ceilToDouble(),
                             getTitlesWidget: (val, _) {
                               final idx = val.toInt();
-                              if (_isWeekly) {
+                              if (isWeekly) {
                                 // Always show Mon–Sun labels (0=Mon … 6=Sun)
                                 if (idx < 0 || idx > 6) return const SizedBox.shrink();
                                 const weekdayAbbrs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

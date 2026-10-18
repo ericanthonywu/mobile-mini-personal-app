@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:expense_tracker/core/theme/app_colors.dart';
 import 'package:expense_tracker/core/utils/currency_formatter.dart';
 import 'package:expense_tracker/features/transactions/providers/transaction_provider.dart';
@@ -30,7 +31,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
   String? _selectedDateLabel;
 
   // Track selections for persistent sheet state
-  String _tempFilterType = 'month'; // 'month', 'week', 'custom'
+  String _tempFilterType = 'month'; // 'month', 'week', 'cc', 'custom'
   int _tempYear = DateTime.now().year;
   int _tempMonth = DateTime.now().month;
   DateTime? _tempCustomFrom;
@@ -68,6 +69,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
             _tempMonth = _selectedDateFrom!.month;
             _tempCustomFrom = _selectedDateFrom;
             _tempCustomTo = _selectedDateTo;
+            if (_selectedDateFrom!.day == 4 && _selectedDateTo != null && _selectedDateTo!.day == 3) {
+              _tempFilterType = 'cc';
+            }
           }
         });
       }
@@ -278,6 +282,26 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: _tempFilterType == 'week' ? Colors.white : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setModalState(() => _tempFilterType = 'cc'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _tempFilterType == 'cc' ? AppColors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'CC Bill',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: _tempFilterType == 'cc' ? Colors.white : AppColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -526,6 +550,132 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                         );
                       },
                     ),
+                  ] else if (_tempFilterType == 'cc') ...[
+                    // Year selector for CC Cycle
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
+                          onPressed: () => setModalState(() => _tempYear--),
+                        ),
+                        Text(
+                          '$_tempYear',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.chevron_right,
+                            color: _tempYear >= currentYear
+                                ? AppColors.textDisabled.withOpacity(0.3)
+                                : AppColors.textPrimary,
+                          ),
+                          onPressed: _tempYear >= currentYear
+                              ? null
+                              : () => setModalState(() => _tempYear++),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Center(
+                      child: Text(
+                        'Siklus: Tgl 4 bulan terpilih – Tgl 3 bulan berikutnya',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Month Grid for CC Cycle
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        childAspectRatio: 1.8,
+                      ),
+                      itemCount: 12,
+                      itemBuilder: (context, index) {
+                        final monthNum = index + 1;
+                        final start = DateTime(_tempYear, monthNum, 4, 0, 0, 0);
+                        final nextMonthDate = DateTime(_tempYear, monthNum + 1, 1);
+                        final end = DateTime(nextMonthDate.year, nextMonthDate.month, 3, 23, 59, 59, 999);
+
+                        final isFutureCycle = start.isAfter(now);
+
+                        final isSelected = _selectedDateFrom != null &&
+                            _selectedDateFrom!.year == _tempYear &&
+                            _selectedDateFrom!.month == monthNum &&
+                            _selectedDateFrom!.day == 4 &&
+                            _selectedDateTo != null &&
+                            _selectedDateTo!.day == 3;
+
+                        final rangeSubtext = '4 ${_monthShortNames[monthNum - 1]} – 3 ${_monthShortNames[nextMonthDate.month - 1]}';
+
+                        return GestureDetector(
+                          onTap: isFutureCycle
+                              ? null
+                              : () {
+                                  _tempMonth = monthNum;
+                                  final label = 'CC: $rangeSubtext $_tempYear';
+                                  _applyDateFilter(start, end, label);
+                                  Navigator.pop(context);
+                                },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : isFutureCycle
+                                      ? AppColors.surfaceVariant.withOpacity(0.3)
+                                      : AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected ? AppColors.primary : AppColors.border,
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _monthShortNames[index],
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : isFutureCycle
+                                            ? AppColors.textDisabled.withOpacity(0.35)
+                                            : AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  rangeSubtext,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w500,
+                                    color: isSelected
+                                        ? Colors.white70
+                                        : isFutureCycle
+                                            ? AppColors.textDisabled.withOpacity(0.25)
+                                            : AppColors.secondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ] else if (_tempFilterType == 'custom') ...[
                     // Custom date range picker trigger
                     GestureDetector(
@@ -684,6 +834,14 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
               scrolledUnderElevation: 0,
               title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
               actions: [
+                IconButton(
+                  tooltip: 'Kalender Pengeluaran',
+                  icon: const Icon(Icons.calendar_month_rounded, color: AppColors.secondary),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    context.push('/calendar');
+                  },
+                ),
                 IconButton(
                   tooltip: 'Auto-kategorikan dengan AI',
                   icon: const Icon(Icons.auto_awesome_rounded, color: AppColors.aiPurple),
@@ -963,6 +1121,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
                   transaction: tx,
                   showIgnoreSlide: true,
                   showNotes: true,
+                  onTap: () => _showSplitPaymentSheet(context, tx),
                   onIgnoreToggle: (isIgnored) {
                     ref.read(transactionProvider.notifier).updateTransaction(
                       tx.id,
@@ -1384,6 +1543,859 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showSplitPaymentSheet(BuildContext context, TransactionModel initialTx) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final txList = ref.watch(transactionProvider).transactions;
+            final tx = txList.firstWhere(
+              (t) => t.id == initialTx.id,
+              orElse: () => initialTx,
+            );
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.75,
+              minChildSize: 0.45,
+              maxChildSize: 0.95,
+              builder: (scrollCtx, scrollController) {
+                return Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    12,
+                    20,
+                    20 + MediaQuery.of(sheetCtx).padding.bottom,
+                  ),
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.border,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      // Title row
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.call_split_rounded,
+                                    color: AppColors.secondary,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Split & BCA Recon',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        tx.merchant,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(sheetCtx),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Recon BCA Comparison Card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.receipt_long_rounded, size: 14, color: AppColors.primaryLight),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'BCA STATEMENT RECONCILIATION',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.5,
+                                        color: AppColors.primaryLight,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'E-STATEMENT',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryLight,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Match credit card statement charges against your actual spending after splits.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
+                                height: 1.3,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Statement Amount',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      CurrencyFormatter.format(tx.amount),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Original credit card charge',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textDisabled,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    const Text(
+                                      'Reimbursed by Others',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '- ${CurrencyFormatter.format(tx.totalSplitAmount)}',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.success,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      tx.hasSplits ? '${tx.splits.length} split payments' : 'No reimbursements yet',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textDisabled,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Divider(color: AppColors.border, height: 1),
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Your Net Expense',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      CurrencyFormatter.format(tx.netAmount),
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: tx.netAmount == 0 ? AppColors.success : AppColors.primaryLight,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    const Text(
+                                      'Actual amount deducted from budget',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (tx.netAmount == 0)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.success.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: AppColors.success.withValues(alpha: 0.5)),
+                                    ),
+                                    child: const Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Fully Reimbursed',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.success,
+                                          ),
+                                        ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          'No impact on your budget',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: AppColors.success,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                else if (tx.hasSplits)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: AppColors.border),
+                                    ),
+                                    child: Text(
+                                      'Your share: ${CurrencyFormatter.format(tx.netAmount)}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Section Title: Reimbursements & Splits
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Text(
+                                'Reimbursements & Splits',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceVariant,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${tx.splits.length}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (tx.netAmount > 0)
+                            TextButton.icon(
+                              onPressed: () => _showAddOrEditSplitModal(context, tx),
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add Split'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // List of splits or empty state
+                      if (tx.splits.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.people_outline_rounded,
+                                size: 40,
+                                color: AppColors.textDisabled,
+                              ),
+                              const SizedBox(height: 10),
+                              const Text(
+                                'No Split Payments Yet',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'This transaction is currently counted entirely as your personal expense (${CurrencyFormatter.format(tx.amount)}). If you covered for friends or office expenses, record their reimbursements here so your personal budget stays accurate.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                onPressed: () => _showAddOrEditSplitModal(context, tx),
+                                icon: const Icon(Icons.add, size: 18),
+                                label: const Text('Record Split / Reimbursement'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: tx.splits.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (ctx, index) {
+                            final split = tx.splits[index];
+                            return _buildSplitItemTile(context, tx, split);
+                          },
+                        ),
+                        if (tx.netAmount > 0) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => _showAddOrEditSplitModal(context, tx),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: Text(
+                              'Add Another Split (Remaining: ${CurrencyFormatter.format(tx.netAmount)})',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSplitItemTile(BuildContext context, TransactionModel tx, SplitPaymentModel split) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+            child: Text(
+              split.paidBy.isNotEmpty ? split.paidBy[0].toUpperCase() : '?',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  split.paidBy,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (split.notes.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    split.notes,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                CurrencyFormatter.format(split.amount),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppColors.success,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () => _showAddOrEditSplitModal(context, tx, splitToEdit: split),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Text(
+                        'Edit',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _confirmDeleteSplit(context, tx, split),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: const Text(
+                        'Delete',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddOrEditSplitModal(
+    BuildContext context,
+    TransactionModel tx, {
+    SplitPaymentModel? splitToEdit,
+  }) {
+    final isEditing = splitToEdit != null;
+    final maxAllowed = isEditing ? (tx.netAmount + splitToEdit.amount) : tx.netAmount;
+    final amountController = TextEditingController(
+      text: isEditing ? splitToEdit.amount.toString() : (maxAllowed > 0 ? maxAllowed.toString() : ''),
+    );
+    final paidByController = TextEditingController(text: isEditing ? splitToEdit.paidBy : '');
+    final notesController = TextEditingController(text: isEditing ? splitToEdit.notes : '');
+    bool isSubmitting = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> submit() async {
+              final rawAmount = int.tryParse(amountController.text);
+              final paidBy = paidByController.text.trim();
+              final notes = notesController.text.trim();
+
+              if (rawAmount == null || rawAmount <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Reimbursement amount must be greater than 0'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              if (rawAmount > maxAllowed) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Amount exceeds remaining share of ${CurrencyFormatter.format(maxAllowed)}',
+                    ),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              if (paidBy.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter who paid (friend or company)'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
+
+              setModalState(() => isSubmitting = true);
+
+              final String? error;
+              if (isEditing) {
+                error = await ref.read(transactionProvider.notifier).updateSplit(
+                  tx.id,
+                  splitToEdit.id,
+                  amount: rawAmount,
+                  paidBy: paidBy,
+                  notes: notes,
+                );
+              } else {
+                error = await ref.read(transactionProvider.notifier).addSplit(
+                  tx.id,
+                  amount: rawAmount,
+                  paidBy: paidBy,
+                  notes: notes,
+                );
+              }
+
+              if (!modalCtx.mounted) return;
+
+              if (error != null) {
+                setModalState(() => isSubmitting = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error), backgroundColor: AppColors.error),
+                );
+                return;
+              }
+
+              Navigator.pop(modalCtx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    isEditing ? 'Split payment updated successfully' : 'Split payment recorded successfully',
+                  ),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                20 + MediaQuery.of(modalCtx).viewInsets.bottom,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isEditing ? 'Edit Split Payment' : 'Record Split / Reimbursement',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(modalCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'BCA statement charge: ${CurrencyFormatter.format(tx.amount)}. Enter how much was reimbursed by friends or company.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // Quick chips for common amounts
+                    if (!isEditing && tx.amount > 0) ...[
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            ActionChip(
+                              label: Text('Full (${CurrencyFormatter.format(maxAllowed)})'),
+                              backgroundColor: AppColors.surfaceVariant,
+                              onPressed: () {
+                                amountController.text = maxAllowed.toString();
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ActionChip(
+                              label: Text('Split in 2 (${CurrencyFormatter.format((tx.amount / 2).round())})'),
+                              backgroundColor: AppColors.surfaceVariant,
+                              onPressed: () {
+                                final half = (tx.amount / 2).round();
+                                if (half <= maxAllowed) {
+                                  amountController.text = half.toString();
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 8),
+                            ActionChip(
+                              label: Text('Split in 3 (${CurrencyFormatter.format((tx.amount / 3).round())})'),
+                              backgroundColor: AppColors.surfaceVariant,
+                              onPressed: () {
+                                final third = (tx.amount / 3).round();
+                                if (third <= maxAllowed) {
+                                  amountController.text = third.toString();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    // Amount
+                    TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: InputDecoration(
+                        labelText: 'Reimbursed Amount',
+                        prefixText: 'Rp ',
+                        hintText: '0',
+                        helperText: 'Maximum reimbursement: ${CurrencyFormatter.format(maxAllowed)}',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Paid by
+                    TextField(
+                      controller: paidByController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Paid / Reimbursed By',
+                        hintText: 'e.g. Alex, Office, Sarah',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Notes
+                    TextField(
+                      controller: notesController,
+                      decoration: const InputDecoration(
+                        labelText: 'Notes (Optional)',
+                        hintText: 'e.g. Bank transfer, lunch share',
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: isSubmitting ? null : submit,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                isEditing ? 'Save Changes' : 'Save Split Payment',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() {
+      amountController.dispose();
+      paidByController.dispose();
+      notesController.dispose();
+    });
+  }
+
+  Future<void> _confirmDeleteSplit(
+    BuildContext context,
+    TransactionModel tx,
+    SplitPaymentModel split,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Split Record?'),
+        content: Text(
+          'Remove split record from "${split.paidBy}" for ${CurrencyFormatter.format(split.amount)}?\n\nThis amount will be counted back toward your personal expenses and deducted from your monthly budget.',
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete Record'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final error = await ref.read(transactionProvider.notifier).deleteSplit(tx.id, split.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(error ?? 'Split payment deleted successfully'),
+        backgroundColor: error != null ? AppColors.error : AppColors.success,
       ),
     );
   }

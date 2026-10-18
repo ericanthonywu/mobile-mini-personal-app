@@ -2,13 +2,21 @@
 class BudgetSummaryModel {
   final BudgetPeriod week;
   final BudgetPeriod month;
+  final BudgetPeriod? creditCard;
 
-  const BudgetSummaryModel({required this.week, required this.month});
+  const BudgetSummaryModel({
+    required this.week,
+    required this.month,
+    this.creditCard,
+  });
 
   factory BudgetSummaryModel.fromJson(Map<String, dynamic> json) {
     return BudgetSummaryModel(
       week: BudgetPeriod.fromJson((json['week'] as Map<String, dynamic>?) ?? {}),
       month: BudgetPeriod.fromJson((json['month'] as Map<String, dynamic>?) ?? {}),
+      creditCard: json['creditCard'] != null
+          ? BudgetPeriod.fromJson(json['creditCard'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -22,6 +30,7 @@ class BudgetPeriod {
   final int remaining;
   final int percentUsed; // 0-100
   final bool isOverBudget;
+  final String? cycleLabel;
 
   const BudgetPeriod({
     required this.start,
@@ -32,6 +41,7 @@ class BudgetPeriod {
     required this.remaining,
     required this.percentUsed,
     required this.isOverBudget,
+    this.cycleLabel,
   });
 
   /// Amount "saved" = budget - real spent. May be negative if over budget.
@@ -57,6 +67,7 @@ class BudgetPeriod {
       remaining: (json['remaining'] as num?)?.toInt() ?? 0,
       percentUsed: (json['percentUsed'] as num?)?.toInt() ?? 0,
       isOverBudget: json['isOverBudget'] as bool? ?? false,
+      cycleLabel: json['cycleLabel'] as String?,
     );
   }
 }
@@ -82,12 +93,17 @@ class DailySpending {
   }
 }
 
-/// Chart data period (weekly or monthly).
+/// Chart data period (weekly, monthly, or credit card).
 class ChartPeriod {
   final List<DailySpending> days;
   final int budget;
+  final String? cycleLabel;
 
-  const ChartPeriod({required this.days, required this.budget});
+  const ChartPeriod({
+    required this.days,
+    required this.budget,
+    this.cycleLabel,
+  });
 
   factory ChartPeriod.fromJson(Map<String, dynamic> json) {
     final rawDays = json['days'] as List?;
@@ -99,6 +115,7 @@ class ChartPeriod {
               .toList()
           : const [],
       budget: (json['budget'] as num?)?.toInt() ?? 0,
+      cycleLabel: json['cycleLabel'] as String?,
     );
   }
 }
@@ -107,13 +124,21 @@ class ChartPeriod {
 class BudgetChartModel {
   final ChartPeriod weekly;
   final ChartPeriod monthly;
+  final ChartPeriod? creditCard;
 
-  const BudgetChartModel({required this.weekly, required this.monthly});
+  const BudgetChartModel({
+    required this.weekly,
+    required this.monthly,
+    this.creditCard,
+  });
 
   factory BudgetChartModel.fromJson(Map<String, dynamic> json) {
     return BudgetChartModel(
       weekly: ChartPeriod.fromJson((json['weekly'] as Map<String, dynamic>?) ?? {}),
       monthly: ChartPeriod.fromJson((json['monthly'] as Map<String, dynamic>?) ?? {}),
+      creditCard: json['creditCard'] != null
+          ? ChartPeriod.fromJson(json['creditCard'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

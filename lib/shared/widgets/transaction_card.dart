@@ -211,6 +211,36 @@ class TransactionCard extends StatelessWidget {
                               DateFormatter.relativeWithTime(transaction.transactionDate),
                               style: Theme.of(context).textTheme.labelSmall,
                             ),
+                            if (transaction.hasSplits) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: AppColors.secondary.withValues(alpha: 0.4),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.call_split_rounded, size: 9, color: AppColors.secondary),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      'Split (${transaction.splits.length})',
+                                      style: const TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.secondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         if (showNotes && transaction.notes.trim().isNotEmpty) ...[
@@ -251,13 +281,57 @@ class TransactionCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          CurrencyFormatter.format(transaction.amount),
+                          CurrencyFormatter.format(transaction.netAmount),
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
-                            color: isIgnored ? AppColors.textSecondary : AppColors.textPrimary,
+                            color: isIgnored
+                                ? AppColors.textSecondary
+                                : (transaction.hasSplits && transaction.netAmount == 0
+                                    ? AppColors.success
+                                    : AppColors.textPrimary),
                             decoration: isIgnored ? TextDecoration.lineThrough : null,
                           ),
                         ),
+                        if (transaction.hasSplits) ...[
+                          const SizedBox(height: 1),
+                          Text(
+                            'Statement: ${CurrencyFormatter.format(transaction.amount)}',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary.withValues(alpha: 0.85),
+                            ),
+                          ),
+                          Text(
+                            'Reimbursed: -${CurrencyFormatter.format(transaction.totalSplitAmount)}',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.success,
+                            ),
+                          ),
+                          if (transaction.netAmount == 0) ...[
+                            Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.success.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: const Text(
+                                'Fully Reimbursed',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.success,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                         if (isIgnored)
                           const Text(
                             'Ignored',
@@ -267,7 +341,7 @@ class TransactionCard extends StatelessWidget {
                               color: AppColors.textDisabled,
                             ),
                           ),
-                        if (onAmountTap != null && !isIgnored)
+                        if (onAmountTap != null && !isIgnored && !transaction.hasSplits)
                           const Text(
                             'Edit',
                             style: TextStyle(
