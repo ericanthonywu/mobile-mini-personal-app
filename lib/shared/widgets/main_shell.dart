@@ -93,8 +93,8 @@ class _MainShellState extends State<MainShell>
         behavior: HitTestBehavior.translucent,
         onHorizontalDragEnd: (details) {
           final v = details.primaryVelocity ?? 0;
-          // Swipe left → next tab (0 to 2)
-          if (v < -350 && currentIndex < 2) {
+          // Swipe left → next tab (0 to 3)
+          if (v < -350 && currentIndex < 3) {
             HapticFeedback.selectionClick();
             _switchTo(currentIndex + 1);
           }
@@ -145,6 +145,12 @@ class _MainShellState extends State<MainShell>
             ),
             BottomNavigationBarItem(
               icon: Icon(currentIndex == 2
+                  ? Icons.calendar_month_rounded
+                  : Icons.calendar_month_outlined),
+              label: 'Kalender',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(currentIndex == 3
                   ? Icons.donut_large_rounded
                   : Icons.donut_large_outlined),
               label: 'Breakdown',

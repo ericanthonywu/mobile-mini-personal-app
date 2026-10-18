@@ -835,14 +835,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> with Au
               title: Text('Transactions', style: Theme.of(context).textTheme.headlineSmall),
               actions: [
                 IconButton(
-                  tooltip: 'Kalender Pengeluaran',
-                  icon: const Icon(Icons.calendar_month_rounded, color: AppColors.secondary),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    context.push('/calendar');
-                  },
-                ),
-                IconButton(
                   tooltip: 'Auto-kategorikan dengan AI',
                   icon: const Icon(Icons.auto_awesome_rounded, color: AppColors.aiPurple),
                   onPressed: () async {

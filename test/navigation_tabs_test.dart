@@ -25,7 +25,7 @@ class _FakeNavigationShellState extends State<_FakeNavigationShell> {
 }
 
 void main() {
-  testWidgets('MainShell displays exactly 3 navigation tabs: Dashboard, Transaksi, Breakdown',
+  testWidgets('MainShell displays exactly 4 navigation tabs: Dashboard, Transaksi, Kalender, Breakdown',
       (WidgetTester tester) async {
     const fakeShell = _FakeNavigationShell(currentIndex: 0);
 
@@ -39,12 +39,13 @@ void main() {
     expect(bottomNavFinder, findsOneWidget);
 
     final bottomNav = tester.widget<BottomNavigationBar>(bottomNavFinder);
-    expect(bottomNav.items.length, 3);
+    expect(bottomNav.items.length, 4);
     expect(bottomNav.items[0].label, 'Dashboard');
     expect(bottomNav.items[1].label, 'Transaksi');
-    expect(bottomNav.items[2].label, 'Breakdown');
+    expect(bottomNav.items[2].label, 'Kalender');
+    expect(bottomNav.items[3].label, 'Breakdown');
 
-    // Confirm that Kategori and Anggaran tabs are completely removed
+    // Confirm that old removed tabs stay removed
     expect(find.text('Kategori'), findsNothing);
     expect(find.text('Anggaran'), findsNothing);
   });

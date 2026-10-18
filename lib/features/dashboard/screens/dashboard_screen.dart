@@ -218,10 +218,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
 
                   // Spending summary bar charts (weekly / monthly)
                   const SpendingSummaryChart(),
-                  const SizedBox(height: 20),
-
-                  // Calendar View banner card
-                  _buildCalendarBannerCard(context),
                   const SizedBox(height: 24),
 
                   // Recent transactions header
@@ -364,22 +360,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
         ),
       ),
       actions: [
-        IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Icon(Icons.calendar_month_rounded, color: AppColors.secondary, size: 18),
-          ),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            context.push('/calendar');
-          },
-          tooltip: 'Kalender Pengeluaran',
-        ),
         IconButton(
           icon: Container(
             padding: const EdgeInsets.all(7),
@@ -683,111 +663,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with Automati
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCalendarBannerCard(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.35)),
-        gradient: LinearGradient(
-          colors: [
-            AppColors.surface,
-            AppColors.secondary.withValues(alpha: 0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            context.push('/calendar');
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.calendar_month_rounded,
-                    color: AppColors.secondary,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Text(
-                            'Kalender Pengeluaran',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.secondary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'BARU',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.secondary,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 3),
-                      const Text(
-                        'Pantau harian, bulanan & rata-rata tahunan',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 14,
-                  color: AppColors.secondary,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

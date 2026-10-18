@@ -50,10 +50,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return AiAdvisorChatScreen(initialQuestion: initialQuestion);
         },
       ),
-      GoRoute(
-        path: '/calendar',
-        builder: (_, __) => const CalendarScreen(),
-      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             MainShell(navigationShell: navigationShell),
@@ -71,6 +67,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/transactions',
                 builder: (_, __) => const TransactionsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/calendar',
+                builder: (_, __) => const CalendarScreen(),
               ),
             ],
           ),
